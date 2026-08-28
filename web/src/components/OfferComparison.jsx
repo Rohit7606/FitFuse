@@ -1,8 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPercent, formatLakh, formatRupees, formatDays } from '../utils/format.js';
 
-export default function OfferComparison({ offers = [] }) {
-  if (!offers.length) {
+export default function OfferComparison({ offersData, isNaive }) {
+  if (!offersData || !offersData.ranking.length) {
     return (
       <div style={{ padding: 'var(--space-2xl)', textAlign: 'center', color: 'var(--text-muted)' }}>
         No offers available.
@@ -10,25 +10,57 @@ export default function OfferComparison({ offers = [] }) {
     );
   }
 
-  // Find the lowest rate to highlight it subtly
-  const feasibleOffers = offers.filter(o => o.feasible);
+  const activeRanking = isNaive ? offersData.naive_ranking : offersData.ranking;
+  const feasibleOffers = activeRanking.filter(o => o.feasible);
   const minRate = feasibleOffers.length > 0 ? Math.min(...feasibleOffers.map(o => o.rate_annual)) : null;
 
+  // The winners for the side-by-side comparison
+  const fitWinner = offersData.ranking.find(o => o.feasible);
+  const naiveWinner = offersData.naive_ranking.find(o => o.feasible);
+
   return (
-    <div className="offers-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-md)' }}>
-      <AnimatePresence>
-        {offers.map((offer, index) => {
-          const isLowestRate = offer.feasible && offer.rate_annual === minRate;
-          return (
-            <OfferCard 
-              key={offer.offer_id}
-              offer={offer}
-              rank={index + 1}
-              isLowestRate={isLowestRate}
-            />
-          );
-        })}
+    <div>
+      <AnimatePresence mode="popLayout">
+        {isNaive && fitWinner && naiveWinner && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginBottom: 'var(--space-xl)' }}
+            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="card" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--accent-primary)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 1fr 1fr', gap: 'var(--space-md)', alignItems: 'center', padding: 'var(--space-sm) 0', borderBottom: '1px solid var(--border-light)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-muted)' }}>Lowest-rate market:</div>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatLakh(naiveWinner.cash_now_lakh)}</div>
+                <div style={{ fontSize: 'var(--font-size-lg)' }}>{formatDays(naiveWinner.days_to_settle)}</div>
+                <div style={{ fontSize: 'var(--font-size-lg)', color: 'var(--accent-danger)' }}>{formatRupees(naiveWinner.total_cost_lakh)}</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 1fr 1fr', gap: 'var(--space-md)', alignItems: 'center', padding: 'var(--space-sm) 0' }}>
+                <div style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>FitFuse:</div>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--accent-success)' }}>{formatLakh(fitWinner.cash_now_lakh)}</div>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--accent-success)' }}>{formatDays(fitWinner.days_to_settle)}</div>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--accent-success)' }}>{formatRupees(fitWinner.total_cost_lakh)}</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
+
+      <div className="offers-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-md)' }}>
+        <AnimatePresence>
+          {activeRanking.map((offer, index) => {
+            const isLowestRate = offer.feasible && offer.rate_annual === minRate;
+            return (
+              <OfferCard 
+                key={offer.offer_id}
+                offer={offer}
+                rank={index + 1}
+                isLowestRate={isLowestRate}
+              />
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
