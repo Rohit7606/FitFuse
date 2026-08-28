@@ -19,13 +19,19 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from api import stubs
+from api.models import AssessRequest, ClearRequest, OffersRequest, SettleRequest
 
 # Local imports — uncomment as implementations land
 # from engine.assess import assess as engine_assess, score_offers, UnknownEntityError, InvalidWeightsError
 # from market.simulate import generate_offers, clear as market_clear, settle as market_settle
 # from market.settlement import IllegalTransitionError
+
+WEIGHT_TOLERANCE = 0.001  # SCHEMA.md §6: weights sum to 1.0 ± 0.001
 
 MARKET_PATH = os.getenv("FITFUSE_MARKET", "data/mock/market.json")
 CORS_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
@@ -61,6 +67,34 @@ def load_market() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Request validation — a bad ID is a 400, never a 500 (SCHEMA.md §5.7)
+# ---------------------------------------------------------------------------
+
+def _error(status: int, error: str, detail: str, **extra) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"error": error, "detail": detail, **extra})
+
+
+def _find_invoice(invoice_id: str) -> JSONResponse | None:
+    """Return an error response if the invoice is unknown, else None."""
+    if any(i["invoice_id"] == invoice_id for i in load_market()["invoices"]):
+        return None
+    return _error(400, "unknown_entity", f"{invoice_id} not in market", entity_id=invoice_id)
+
+
+def _check_weights(scenario) -> JSONResponse | None:
+    """Preference weights must sum to 1.0; the sliders are the usual offender."""
+    for override in scenario.preference_overrides:
+        total = sum(override.weights.values())
+        if abs(total - 1.0) > WEIGHT_TOLERANCE:
+            return _error(
+                400,
+                "invalid_weights",
+                f"Weights sum to {total:.2f}, expected 1.0",
+            )
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 
@@ -80,8 +114,9 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Endpoints — stubbed with static responses for Phase 0
-# Replace stubs with real logic as engine/ and market/ implementations land.
+# Endpoints — Phase 0 returns contract-valid static responses from api/stubs.py
+# so Person C can build against a running API. Swap each stub call for the real
+# engine/market call as those land; the response shape does not change.
 # ---------------------------------------------------------------------------
 
 @app.get("/api/market")
@@ -98,28 +133,48 @@ def get_market():
 
 
 @app.post("/api/assess")
-def assess_invoice(req: dict):
+def assess_invoice(req: AssessRequest):
     """Verification, risk and eligibility for one invoice. No offers."""
-    # Phase 0: stub — return 501 until engine is implemented
-    raise HTTPException(status_code=501, detail="assess not yet implemented")
+    return (
+        _find_invoice(req.invoice_id)
+        or _check_weights(req.scenario)
+        or stubs.stub_assessment(req.invoice_id)
+    )
 
 
 @app.post("/api/offers")
-def get_offers(req: dict):
-    """Generate and score competing offers for one invoice."""
-    # Phase 0: stub
-    raise HTTPException(status_code=501, detail="offers not yet implemented")
+def get_offers(req: OffersRequest):
+    """Generate and score competing offers. naive_ranking is always returned."""
+    return (
+        _find_invoice(req.invoice_id)
+        or _check_weights(req.scenario)
+        or stubs.stub_offers(req.invoice_id)
+    )
 
 
 @app.post("/api/clear")
-def clear_market(req: dict):
+def clear_market(req: ClearRequest):
     """Run clearing across the market and return stable matches."""
-    # Phase 0: stub
-    raise HTTPException(status_code=501, detail="clear not yet implemented")
+    if not req.invoice_ids:
+        return _error(400, "unknown_entity", "invoice_ids must not be empty",
+                      entity_id=None)
+    for invoice_id in req.invoice_ids:
+        if (err := _find_invoice(invoice_id)) is not None:
+            return err
+    return _check_weights(req.scenario) or stubs.stub_clearing(req.invoice_ids)
 
 
 @app.post("/api/settle")
-def settle_match(req: dict):
+def settle_match(req: SettleRequest):
     """Advance a match through settlement and return before/after/delta."""
-    # Phase 0: stub
-    raise HTTPException(status_code=501, detail="settle not yet implemented")
+    if req.outcome not in ("settled", "late", "defaulted"):
+        return _error(
+            400,
+            "illegal_transition",
+            f"Cannot settle to state '{req.outcome}'; "
+            "expected one of settled, late, defaulted",
+        )
+    return (
+        _check_weights(req.scenario)
+        or stubs.stub_settle(req.match_id, req.outcome, req.days_late)
+    )
