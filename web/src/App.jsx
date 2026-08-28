@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { getMarket } from './utils/api.js';
 import DemoFlow from './components/DemoFlow.jsx';
+import demoScenario from '../../data/fixtures/demo_scenario.json';
 
 export default function App() {
   // We'll keep market fetch just to make sure backend is up, but DemoFlow drives the demo
@@ -67,7 +68,7 @@ export default function App() {
     <div className="app-layout">
       <Header />
       <main className="app-main">
-        <DemoFlow invoiceId="INV001" />
+        <DemoFlow invoiceId={demoScenario.invoice_id} secondaryInvoiceId={demoScenario.secondary_invoice_id} />
       </main>
     </div>
   );

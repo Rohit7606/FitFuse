@@ -1,19 +1,20 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatPercent, formatLakh } from '../utils/format.js';
+import { formatPercent } from '../utils/format.js';
 
 export default function LearningDelta({ delta, providers = [] }) {
-  if (!delta) return null;
-
-  const { trigger, repriced_invoices, provider_bid_adjustments, summary_text } = delta;
-
   // We use local state to trigger the animation of the repricing after a short delay
   const [showAfter, setShowAfter] = useState(false);
 
   useEffect(() => {
+    if (!delta) return;
     const timer = setTimeout(() => setShowAfter(true), 1500);
     return () => clearTimeout(timer);
   }, [delta]);
+
+  if (!delta) return null;
+
+  const { trigger, repriced_invoices, provider_bid_adjustments, summary_text } = delta;
 
   const bandColors = {
     prime: 'var(--accent-success)',

@@ -22,7 +22,7 @@ const DEFAULT_WEIGHTS = {
   structure: 0.05
 };
 
-export default function DemoFlow({ invoiceId = 'INV001' }) {
+export default function DemoFlow({ invoiceId, secondaryInvoiceId }) {
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [debouncedWeights, setDebouncedWeights] = useState(DEFAULT_WEIGHTS);
 
@@ -110,8 +110,8 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
         settlement_events: [],
         naive_mode: isNaive
       };
-      // For demo, we clear using INV001 and INV014
-      const res = await clearMarket([invoiceId, 'INV014'], scenario);
+      // For demo, we clear using the dynamic primary and secondary invoices
+      const res = await clearMarket([invoiceId, secondaryInvoiceId], scenario);
       if (res.matches && res.matches.length > 0) {
         setMatchData(res.matches.find(m => m.invoice_id === invoiceId));
       }
