@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPercent, formatLakh, formatRupees, formatDays } from '../utils/format.js';
 
 export default function OfferComparison({ offers = [] }) {
   if (!offers.length) {
@@ -11,13 +12,13 @@ export default function OfferComparison({ offers = [] }) {
 
   // Find the lowest rate to highlight it subtly
   const feasibleOffers = offers.filter(o => o.feasible);
-  const minRate = feasibleOffers.length > 0 ? Math.min(...feasibleOffers.map(o => o.rate)) : null;
+  const minRate = feasibleOffers.length > 0 ? Math.min(...feasibleOffers.map(o => o.rate_annual)) : null;
 
   return (
     <div className="offers-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-md)' }}>
       <AnimatePresence>
         {offers.map((offer, index) => {
-          const isLowestRate = offer.feasible && offer.rate === minRate;
+          const isLowestRate = offer.feasible && offer.rate_annual === minRate;
           return (
             <OfferCard 
               key={offer.offer_id}
@@ -33,7 +34,7 @@ export default function OfferComparison({ offers = [] }) {
 }
 
 function OfferCard({ offer, rank, isLowestRate }) {
-  const { provider, fit_score, rate, advance_rate, tenor_days, settlement_days, total_cost_lakh, feasible, reason_text, rejection_reason } = offer;
+  const { provider, fit_score, rate_annual, cash_now_lakh, tenor_days, days_to_settle, total_cost_lakh, feasible, reason_text, rejection_reason } = offer;
 
   const cardStyle = {
     opacity: feasible ? 1 : 0.6,
@@ -73,12 +74,12 @@ function OfferCard({ offer, rank, isLowestRate }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-sm)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-md)' }}>
             <MetricRow 
               label="Cost (Rate)" 
-              value={`${(rate * 100).toFixed(1)}%`} 
+              value={formatPercent(rate_annual, 2)} 
               highlight={isLowestRate} 
             />
-            <MetricRow label="Cash Now" value={`₹${advance_rate.toFixed(2)} lakh`} />
-            <MetricRow label="Speed" value={settlement_days === 0 ? 'Same day' : `${settlement_days} days`} />
-            <MetricRow label="All-in Cost" value={`₹${total_cost_lakh.toFixed(2)} lakh`} />
+            <MetricRow label="Cash Now" value={formatLakh(cash_now_lakh)} />
+            <MetricRow label="Speed" value={formatDays(days_to_settle)} />
+            <MetricRow label="All-in Cost" value={formatRupees(total_cost_lakh)} />
             <MetricRow label="Tenor" value={`${tenor_days} days`} />
           </div>
 

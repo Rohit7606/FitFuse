@@ -39,8 +39,18 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
     
     async function fetchData() {
       try {
-        const scenario = { supplier_priorities: debouncedWeights };
-        
+        const scenario = {
+          preference_overrides: [
+            {
+              supplier_id: 'SUP001',
+              weights: debouncedWeights,
+              urgent: true
+            }
+          ],
+          liquidity_overrides: [],
+          settlement_events: [],
+          naive_mode: false
+        };
         // Parallel fetch for speed
         const [marketRes, assessRes, offersRes] = await Promise.all([
           getMarket(),
