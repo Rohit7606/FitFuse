@@ -82,6 +82,22 @@ def _blend(allocations: list[dict], offers_by_id: dict, amount_lakh: float) -> t
     return round(weighted_rate / total, 4), round(cost, 5)
 
 
+def _sector_room(provider: dict) -> dict[str, float]:
+    """Sector headroom left, after the exposure the provider already carries."""
+    portfolio = provider.get("total_portfolio_lakh", 0.0)
+    held = provider.get("current_exposure", {}).get("by_sector", {})
+    return {
+        sector: max(limit * portfolio - held.get(sector, 0.0), 0.0)
+        for sector, limit in sorted((provider.get("sector_limits") or {}).items())
+    }
+
+
+def _buyer_limit(provider: dict) -> float | None:
+    """The most this provider may hold against any one buyer. None = no limit."""
+    limit = provider.get("buyer_limit")
+    return None if limit is None else limit * provider.get("total_portfolio_lakh", 0.0)
+
+
 def _settle_residual(allocations: list[dict], target: float) -> None:
     """Force allocations to sum to exactly `target`, in place.
 
@@ -143,12 +159,18 @@ def run_clearing(
     providers: list[dict],
     eligibility_by_invoice: dict[str, dict],
     risk_by_invoice: dict[str, dict],
+    exposure_by_invoice: dict[str, dict],
 ) -> dict:
     """Deferred acceptance across every invoice, then syndicate each match.
 
     Args:
         offers_by_invoice: scored offers per invoice; each carries fit_score
                            and feasible from engine/scoring.py.
+        exposure_by_invoice: {invoice_id: {"buyer_id": str, "sector": str}} —
+                           which concentration buckets each invoice consumes.
+                           Required, not optional: a default of "no tracking"
+                           would silently reinstate the over-allocation this
+                           argument exists to prevent.
 
     Returns:
         ClearingResult per SCHEMA.md §5.5.
@@ -166,6 +188,20 @@ def run_clearing(
             if pid in elig
         ]
         capacity[pid] = max(caps) if caps else 0.0
+
+    # Concentration headroom, tracked across the WHOLE run and decremented as
+    # capital is committed. eligibility.max_fundable_lakh is per-invoice
+    # headroom: correct for one invoice, and wrong the moment a provider funds
+    # several in the same sector, because nothing was subtracting. Clearing the
+    # full book put Meridian ₹31 lakh over its textiles limit and Kestrel over
+    # its auto-components limit — a limit that only holds for one invoice is
+    # not a limit (AGENTS.md §4.5).
+    sector_room = {pid: _sector_room(p) for pid, p in sorted(provider_by_id.items())}
+    buyer_cap = {pid: _buyer_limit(p) for pid, p in sorted(provider_by_id.items())}
+    buyer_used = {
+        pid: dict(sorted(p.get("current_exposure", {}).get("by_buyer", {}).items()))
+        for pid, p in sorted(provider_by_id.items())
+    }
 
     # Suppliers rank by fit; each invoice works down its own preference list.
     preferences = {}
@@ -237,13 +273,24 @@ def run_clearing(
         ranked = preferences[invoice_id]
         offers_by_id = {o["offer_id"]: o for o in ranked}
 
+        exposure = exposure_by_invoice[invoice_id]
+        sector, buyer_id = exposure["sector"], exposure["buyer_id"]
+
+        # What each provider may take on THIS invoice, after every binding
+        # limit. A throwaway per-invoice budget, so a syndication that fails
+        # to fill costs nothing — the real budgets move only on success.
+        room = {}
+        for pid, remaining in sorted(capacity.items()):
+            limits = [remaining, sector_room[pid].get(sector, remaining)]
+            if buyer_cap[pid] is not None:
+                limits.append(buyer_cap[pid] - buyer_used[pid].get(buyer_id, 0.0))
+            room[pid] = max(min(limits), 0.0)
+
         allocations, shortfall = _syndicate(
-            invoice_id, ranked, offers_by_id, capacity, invoice["amount_lakh"]
+            invoice_id, ranked, offers_by_id, room, invoice["amount_lakh"]
         )
 
         if not allocations or shortfall > EPSILON:
-            for alloc in allocations:  # hand back what we tentatively took
-                capacity[alloc["provider_id"]] += alloc["amount_lakh"]
             unmatched.append({
                 "invoice_id": invoice_id,
                 "reason": (
@@ -258,7 +305,12 @@ def run_clearing(
         total_advance = round(sum(a["amount_lakh"] for a in allocations), 2)
         _settle_residual(allocations, total_advance)
         for alloc in allocations:
-            committed[alloc["provider_id"]] += alloc["amount_lakh"]
+            pid, amount = alloc["provider_id"], alloc["amount_lakh"]
+            committed[pid] += amount
+            capacity[pid] -= amount
+            if sector in sector_room[pid]:
+                sector_room[pid][sector] -= amount
+            buyer_used[pid][buyer_id] = buyer_used[pid].get(buyer_id, 0.0) + amount
 
         blended_rate, blended_cost = _blend(allocations, offers_by_id,
                                             invoice["amount_lakh"])
