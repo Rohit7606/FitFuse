@@ -13,6 +13,7 @@ Reviewer: Person A
 from __future__ import annotations
 
 import copy
+import json
 
 from engine.assess import UnknownEntityError
 from engine.assess import assess as engine_assess
@@ -129,9 +130,13 @@ def clear(
     offers_by_invoice: dict[str, list[dict]] = {}
     eligibility_by_invoice: dict[str, dict] = {}
     risk_by_invoice: dict[str, dict] = {}
+    exposure_by_invoice: dict[str, dict] = {}
     rejected: list[dict] = []
 
-    for invoice_id in sorted(invoice_ids):
+    # Deduplicated, not just sorted. Asking to clear the same invoice twice is
+    # the same request, but iterating it twice matched it twice under one
+    # match_id and committed the providers' capital against both.
+    for invoice_id in sorted(set(invoice_ids)):
         invoice = _find(market.get("invoices", []), "invoice_id", invoice_id)
         assessment = engine_assess(invoice_id, market, scenario)
 
@@ -144,7 +149,12 @@ def clear(
 
         scored = scored_offers(invoice_id, market, assessment, scenario)
 
+        buyer = _find(market.get("buyers", []), "buyer_id", invoice["buyer_id"])
         invoices.append(invoice)
+        exposure_by_invoice[invoice_id] = {
+            "buyer_id": buyer["buyer_id"],
+            "sector": buyer.get("sector", "unknown"),
+        }
         offers_by_invoice[invoice_id] = scored["offers"]
         eligibility_by_invoice[invoice_id] = {
             e["provider_id"]: e for e in assessment["eligibility"]
@@ -152,7 +162,8 @@ def clear(
         risk_by_invoice[invoice_id] = assessment["risk"]
 
     result = run_clearing(invoices, offers_by_invoice, providers,
-                          eligibility_by_invoice, risk_by_invoice)
+                          eligibility_by_invoice, risk_by_invoice,
+                          exposure_by_invoice)
 
     # Rejected invoices belong in unmatched with an honest reason — a caller
     # asking about ten invoices should get ten answers, not silence for some.
@@ -307,3 +318,53 @@ def _with_liquidity_overrides(providers: list[dict], scenario: object | None) ->
                         "available_liquidity_lakh": overrides[provider["provider_id"]]}
         adjusted.append(provider)
     return adjusted
+
+
+# ---------------------------------------------------------------------------
+# CLI — `python -m market.simulate data/mock/market.json` (AGENTS.md §5.2)
+# ---------------------------------------------------------------------------
+
+def _main(argv: list[str] | None = None) -> int:
+    """Run one invoice end to end and print the result as JSON.
+
+    AGENTS.md §5.2 documents this command. It printed nothing at all until
+    now, because the module had no entry point — the determinism check in the
+    same section was diffing two empty files against each other.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="market.simulate",
+                                     description="Run the market simulator end to end.")
+    parser.add_argument("market", help="path to market.json")
+    parser.add_argument("--invoice", default="INV001", help="invoice to run")
+    parser.add_argument("--settle", metavar="OUTCOME",
+                        choices=("settled", "late", "defaulted"),
+                        help="also settle the resulting match with this outcome")
+    parser.add_argument("--days-late", type=int, default=5)
+    args = parser.parse_args(argv)
+
+    with open(args.market, encoding="utf-8") as handle:
+        market = json.load(handle)
+
+    assessment = engine_assess(args.invoice, market)
+    result = {
+        "invoice_id": args.invoice,
+        "assessment": assessment,
+        **scored_offers(args.invoice, market, assessment),
+        "clearing": clear([args.invoice], market),
+    }
+    if args.settle:
+        match = result["clearing"]["matches"]
+        if not match:
+            raise SystemExit(f"{args.invoice} did not clear; nothing to settle.")
+        result["settlement"] = settle(match[0]["match_id"], args.settle,
+                                      args.days_late, market)
+
+    # sort_keys so two runs are byte-identical and the documented determinism
+    # check actually checks something (AGENTS.md §3.1).
+    print(json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

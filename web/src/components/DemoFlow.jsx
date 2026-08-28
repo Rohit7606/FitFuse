@@ -5,10 +5,14 @@ import RiskPanel from './RiskPanel.jsx';
 import OfferComparison from './OfferComparison.jsx';
 import PreferenceSliders from './PreferenceSliders.jsx';
 
-// Default weights from DEMO_SCENARIO.md
+// Default weights from DEMO_SCENARIO.md.
+// These six keys are the contract (SCHEMA.md 3.3) — cost, advance, speed,
+// tenor, fees, structure. The API rejects anything else with a 422, because a
+// weight vector that sums to 1.0 over the wrong keys used to return a
+// confident, wrong ranking instead of an error.
 const DEFAULT_WEIGHTS = {
   cost: 0.10,
-  advance_rate: 0.05,
+  advance: 0.05,
   speed: 0.60,
   tenor: 0.15,
   fees: 0.05,

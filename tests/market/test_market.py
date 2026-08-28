@@ -344,6 +344,8 @@ def demo_clearing():
         eligibility_by_invoice={
             "INV001": {e["provider_id"]: e for e in assessment["eligibility"]}},
         risk_by_invoice={"INV001": assessment["risk"]},
+        exposure_by_invoice={"INV001": {"buyer_id": invoice["buyer_id"],
+                                        "sector": "auto_components"}},
     )
 
 
@@ -455,10 +457,93 @@ class TestSyndication:
                 p: {"provider_id": p, "eligible": True, "max_fundable_lakh": 0.50}
                 for p in demo}},
             risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+            exposure_by_invoice={"INV001": {"buyer_id": "BUY001",
+                                            "sector": "auto_components"}},
         )
         assert result["matches"] == []
         assert result["unmatched"][0]["invoice_id"] == "INV001"
         assert "lakh" in result["unmatched"][0]["reason"]
+
+
+class TestConcentrationLimits:
+    """A limit that only holds for one invoice is not a limit (AGENTS.md §4.5)."""
+
+    # All four are on BUY001, so they compete for the same buyer headroom.
+    IDS = ["INV001", "INV014", "INV031", "INV033"]
+
+    def test_buyer_limit_binds_across_invoices(self):
+        """Kestrel must stop at its BUY001 headroom, not at its overall capacity.
+
+        Built deliberately, because the obvious version proves nothing. The
+        shared per-provider budget is the largest per-invoice max_fundable_lakh
+        across the batch, so if every invoice were on one buyer that budget
+        already equals the buyer cap and deleting the buyer check changes no
+        number. It only bites when the batch spans several buyers: the budget
+        is then set by some other buyer's invoice, and nothing stops the
+        provider spending it all against this one.
+
+        Sector limits are widened so they cannot be what binds, and Kestrel is
+        given ₹45 lakh of prior BUY001 exposure against a ₹75 lakh cap. It wants
+        ₹48.84 lakh. It may have ₹30.00.
+        """
+        from market.simulate import clear
+
+        market = copy.deepcopy(_market_json())
+        for provider in market["providers"]:
+            provider["sector_limits"] = {
+                sector: 0.99 for sector in (provider.get("sector_limits") or {})}
+            provider["current_exposure"]["by_sector"] = {}
+            if provider["provider_id"] == "PRV003":
+                provider["current_exposure"]["by_buyer"]["BUY001"] = 45.0
+
+        invoices = {i["invoice_id"]: i for i in market["invoices"]}
+        on_buyer = [i for i, v in invoices.items() if v["buyer_id"] == "BUY001"]
+        elsewhere = [i for i, v in invoices.items() if v["buyer_id"] != "BUY001"][:6]
+
+        funded = {}
+        for match in clear(sorted(on_buyer + elsewhere), market)["matches"]:
+            if invoices[match["invoice_id"]]["buyer_id"] != "BUY001":
+                continue
+            for alloc in match["allocations"]:
+                funded[alloc["provider_id"]] = (
+                    funded.get(alloc["provider_id"], 0.0) + alloc["amount_lakh"])
+
+        for provider in market["providers"]:
+            pid = provider["provider_id"]
+            if pid not in funded:
+                continue
+            cap = provider["buyer_limit"] * provider["total_portfolio_lakh"]
+            held = provider["current_exposure"]["by_buyer"].get("BUY001", 0.0)
+            assert held + funded[pid] <= cap + 1e-6, (
+                f"{pid} holds {held + funded[pid]:.2f} lakh against BUY001, "
+                f"cap {cap:.2f}")
+
+        assert funded.get("PRV003") == pytest.approx(30.0, abs=0.01), (
+            "the limit did not bind, so this test proves nothing")
+
+    def test_sector_limit_binds_across_invoices(self):
+        from market.simulate import clear
+
+        market = _market_json()
+        buyers = {b["buyer_id"]: b for b in market["buyers"]}
+        invoices = {i["invoice_id"]: i for i in market["invoices"]}
+        providers = {p["provider_id"]: p for p in market["providers"]}
+
+        funded = {}
+        for match in clear(self.IDS, market)["matches"]:
+            sector = buyers[invoices[match["invoice_id"]]["buyer_id"]]["sector"]
+            for alloc in match["allocations"]:
+                key = (alloc["provider_id"], sector)
+                funded[key] = funded.get(key, 0.0) + alloc["amount_lakh"]
+
+        for (provider_id, sector), total in funded.items():
+            provider = providers[provider_id]
+            limit = (provider.get("sector_limits") or {}).get(sector)
+            if limit is None:
+                continue
+            held = provider.get("current_exposure", {}).get("by_sector", {}).get(sector, 0.0)
+            cap = limit * provider["total_portfolio_lakh"]
+            assert held + total <= cap + 1e-6, f"{provider_id}/{sector}"
 
 
 class TestPurity:
