@@ -100,6 +100,7 @@
         "min_ticket_lakh":         { "type": "number" },
         "max_ticket_lakh":         { "type": "number" },
         "cost_of_funds":           { "type": "number" },
+        "target_margin":           { "type": "number", "minimum": 0 },
         "target_return":           { "type": "number" },
         "sector_limits":           { "type": "object" },
         "buyer_limit":             { "type": "number" },
