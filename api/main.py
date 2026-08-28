@@ -42,7 +42,7 @@ from market import simulate
 WEIGHT_TOLERANCE = 0.001  # SCHEMA.md §6: weights sum to 1.0 ± 0.001
 
 MARKET_PATH = os.getenv("FITFUSE_MARKET", "data/mock/market.json")
-CORS_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
+CORS_ORIGINS = ["http://localhost:5173", "http://localhost:5174", "http://localhost:5177", "http://localhost:3000"]
 
 app = FastAPI(
     title="FitFuse",

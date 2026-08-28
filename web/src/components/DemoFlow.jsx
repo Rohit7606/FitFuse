@@ -18,7 +18,7 @@ const DEFAULT_WEIGHTS = {
 export default function DemoFlow({ invoiceId = 'INV001' }) {
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [debouncedWeights, setDebouncedWeights] = useState(DEFAULT_WEIGHTS);
-  
+
   const [assessment, setAssessment] = useState(null);
   const [offersData, setOffersData] = useState(null);
   const [isNaive, setIsNaive] = useState(false);
@@ -36,7 +36,7 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
   // Fetch data
   useEffect(() => {
     let active = true;
-    
+
     async function fetchData() {
       try {
         const scenario = {
@@ -57,12 +57,12 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
           assessInvoice(invoiceId, scenario),
           getOffers(invoiceId, scenario)
         ]);
-        
+
         if (active) {
           // Merge provider info into offers
           const providerMap = {};
           marketRes.providers.forEach(p => { providerMap[p.provider_id] = p; });
-          
+
           offersRes.offers = offersRes.offers.map(o => ({
             ...o,
             provider: providerMap[o.provider_id]
@@ -84,9 +84,9 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
         }
       }
     }
-    
+
     fetchData();
-    
+
     return () => { active = false; };
   }, [invoiceId, debouncedWeights]);
 
@@ -117,7 +117,7 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
           </div>
           <p className="section-header__subtitle">Reviewing {invoiceId}</p>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
           <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>Naive Market View</span>
           <label className="toggle-switch">
@@ -144,8 +144,8 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
           Offer Comparison
         </h2>
         {/* We use isNaive flag to toggle the active ranking list instantly without network calls */}
-        <OfferComparison 
-          offers={isNaive ? offersData.naive_ranking : offersData.ranking} 
+        <OfferComparison
+          offers={isNaive ? offersData.naive_ranking : offersData.ranking}
           isNaive={isNaive}
           fitBeatsRate={offersData.fit_beats_rate}
         />
