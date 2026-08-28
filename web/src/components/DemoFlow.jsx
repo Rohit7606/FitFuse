@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getMarket, assessInvoice, getOffers } from '../utils/api.js';
+import { getMarket, assessInvoice, getOffers, clearMarket, settleMatch } from '../utils/api.js';
 import VerificationPanel from './VerificationPanel.jsx';
 import RiskPanel from './RiskPanel.jsx';
 import OfferComparison from './OfferComparison.jsx';
 import PreferenceSliders from './PreferenceSliders.jsx';
 import ProviderPanel from './ProviderPanel.jsx';
+import MatchSettlement from './MatchSettlement.jsx';
+import LearningDelta from './LearningDelta.jsx';
 
 // Default weights from DEMO_SCENARIO.md
 const DEFAULT_WEIGHTS = {
@@ -23,6 +25,9 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
   const [assessment, setAssessment] = useState(null);
   const [market, setMarket] = useState(null);
   const [offersData, setOffersData] = useState(null);
+  const [matchData, setMatchData] = useState(null);
+  const [learningData, setLearningData] = useState(null);
+  const [viewRole, setViewRole] = useState('Market'); // 'Market', 'Supplier', 'Provider'
   const [isNaive, setIsNaive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -93,6 +98,41 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
     return () => { active = false; };
   }, [invoiceId, debouncedWeights]);
 
+  const handleClearMarket = async () => {
+    try {
+      const scenario = {
+        preference_overrides: [{ supplier_id: 'SUP001', weights: debouncedWeights, urgent: true }],
+        liquidity_overrides: [],
+        settlement_events: [],
+        naive_mode: isNaive
+      };
+      // For demo, we clear using INV001 and INV014
+      const res = await clearMarket([invoiceId, 'INV014'], scenario);
+      if (res.matches && res.matches.length > 0) {
+        setMatchData(res.matches.find(m => m.invoice_id === invoiceId));
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleSettleMatch = async (outcome, daysLate) => {
+    if (!matchData) return;
+    try {
+      const scenario = {
+        preference_overrides: [{ supplier_id: 'SUP001', weights: debouncedWeights, urgent: true }],
+        liquidity_overrides: [],
+        settlement_events: [],
+        naive_mode: isNaive
+      };
+      const res = await settleMatch(matchData.match_id, outcome, daysLate, scenario);
+      setMatchData(res.after.match);
+      if (res.delta) setLearningData(res.delta);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   if (loading && !assessment) {
     return (
       <div style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
@@ -121,45 +161,94 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
           <p className="section-header__subtitle">Reviewing {invoiceId}</p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-          <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>Naive Market View</span>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={isNaive} onChange={e => setIsNaive(e.target.checked)} />
-            <span className="toggle-slider"></span>
-          </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 4, display: 'flex', gap: 4 }}>
+            {['Market', 'Supplier', 'Provider'].map(role => (
+              <button 
+                key={role}
+                onClick={() => setViewRole(role)}
+                style={{ 
+                  padding: '4px 12px', border: 'none', borderRadius: 4, cursor: 'pointer',
+                  fontWeight: 600, fontSize: 'var(--font-size-sm)',
+                  background: viewRole === role ? 'var(--accent-primary)' : 'transparent',
+                  color: viewRole === role ? '#fff' : 'var(--text-secondary)'
+                }}
+              >
+                {role}
+              </button>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 24, background: 'var(--border-light)' }}></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>Naive Market View</span>
+            <label className="toggle-switch">
+              <input type="checkbox" checked={isNaive} onChange={e => setIsNaive(e.target.checked)} />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
         </div>
       </div>
 
-      <div className="panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
-        <VerificationPanel assessment={assessment} />
-        <RiskPanel assessment={assessment} />
-      </div>
+      {viewRole !== 'Provider' && (
+        <div className="panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
+          <VerificationPanel assessment={assessment} />
+          <RiskPanel assessment={assessment} />
+        </div>
+      )}
 
-      <div style={{ marginBottom: 'var(--space-2xl)' }}>
-        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
-          Provider Market
-        </h2>
-        <ProviderPanel providers={market?.providers} eligibility={assessment?.eligibility} />
-      </div>
+      {viewRole !== 'Supplier' && (
+        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
+            Provider Market
+          </h2>
+          <ProviderPanel providers={market?.providers} eligibility={assessment?.eligibility} />
+        </div>
+      )}
 
-      <div style={{ marginBottom: 'var(--space-2xl)' }}>
-        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
-          Supplier Preferences
-        </h2>
-        <PreferenceSliders weights={weights} onChange={setWeights} />
-      </div>
+      {viewRole !== 'Provider' && (
+        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
+            Supplier Preferences
+          </h2>
+          <PreferenceSliders weights={weights} onChange={setWeights} />
+        </div>
+      )}
 
-      <div>
-        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
-          Offer Comparison
-        </h2>
-        {/* We use isNaive flag to toggle the active ranking list instantly without network calls */}
-        <OfferComparison
-          offers={isNaive ? offersData.naive_ranking : offersData.ranking}
-          isNaive={isNaive}
-          fitBeatsRate={offersData.fit_beats_rate}
-        />
-      </div>
+      {viewRole !== 'Provider' && (
+        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-md)' }}>
+            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, margin: 0 }}>
+              Offer Comparison
+            </h2>
+            {/* Show run clearing button if there are feasible offers */}
+            {offersData && offersData.ranking.some(o => o.feasible) && (
+              <button className="btn btn--primary" onClick={handleClearMarket}>Run Market Clearing</button>
+            )}
+          </div>
+          {/* We use isNaive flag to toggle the active ranking list instantly without network calls */}
+          <OfferComparison
+            offersData={offersData}
+            isNaive={isNaive}
+          />
+        </div>
+      )}
+
+      {matchData && (
+        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+          <MatchSettlement 
+            match={matchData} 
+            providers={market?.providers} 
+            onFund={() => setMatchData({ ...matchData, state: 'funded' })} 
+            onSettle={handleSettleMatch} 
+          />
+        </div>
+      )}
+
+      {learningData && viewRole !== 'Supplier' && (
+        <div style={{ marginBottom: 'var(--space-2xl)' }}>
+          <LearningDelta delta={learningData} providers={market?.providers} />
+        </div>
+      )}
     </div>
   );
 }
