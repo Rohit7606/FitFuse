@@ -1,0 +1,52 @@
+{
+  "scenario_id": "canonical_v1",
+  "description": "Sharda's invoice: fit beats rate, capacity forces syndication, late payment triggers learning",
+  "invoice_id": "INV001",
+  "duplicate_invoice_id": "INV002",
+  "supplier_id": "SUP001",
+  "buyer_id": "BUY001",
+  "secondary_invoice_id": "INV014",
+
+  "expected_verification": {
+    "status": "verified",
+    "irn_valid": true,
+    "duplicate_detected": false,
+    "unknown_field_count": 1
+  },
+  "expected_duplicate_verification": {
+    "status": "rejected",
+    "duplicate_detected": true,
+    "duplicate_of": "INV001"
+  },
+
+  "expected_risk": {
+    "risk_band": "prime",
+    "pd_range": [0.0140, 0.0280]
+  },
+
+  "expected_eligible": ["PRV001", "PRV002", "PRV003", "PRV004"],
+  "expected_excluded": {
+    "PRV005": "max_ticket",
+    "PRV006": "risk_appetite"
+  },
+
+  "expected_ranking":       ["OFR003", "OFR001", "OFR004", "OFR002"],
+  "expected_naive_ranking": ["OFR002", "OFR003", "OFR001", "OFR004"],
+  "expected_cheapest_preset_winner": "OFR004",
+
+  "expected_match": {
+    "syndicated": true,
+    "total_advance_lakh": 9.00,
+    "allocations": [
+      { "provider_id": "PRV003", "amount_lakh": 6.00 },
+      { "provider_id": "PRV001", "amount_lakh": 3.00 }
+    ]
+  },
+
+  "settlement_event": { "outcome": "late", "days_late": 5 },
+  "expected_after_learning": {
+    "BUY001_avg_delay": 5,
+    "INV014_band_before": "prime",
+    "INV014_band_after": "standard"
+  }
+}

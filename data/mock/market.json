@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "schema_version": "1.0",
+    "generated_at": "2026-08-28T00:00:00Z",
+    "generator": "mockgen",
+    "seed": 42,
+    "currency_unit": "INR_lakh"
+  },
+  "suppliers": [],
+  "buyers": [],
+  "invoices": [],
+  "providers": [],
+  "financing_history": []
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "Placeholder mock — Person C: replace with full market mock matching SCHEMA.md §3",
+  "meta": {
+    "schema_version": "1.0",
+    "generated_at": "2026-08-28T00:00:00Z",
+    "generator": "mock",
+    "seed": 42,
+    "currency_unit": "INR_lakh"
+  },
+  "suppliers": [],
+  "buyers": [],
+  "invoices": [],
+  "providers": []
+}

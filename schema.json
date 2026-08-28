@@ -1,0 +1,270 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FitFuse Data Contract",
+  "description": "Machine-readable contract for FitFuse — see SCHEMA.md for human-readable version.",
+  "definitions": {
+    "SupplierPreferences": {
+      "type": "object",
+      "required": ["weights"],
+      "properties": {
+        "preset": {
+          "type": ["string", "null"],
+          "enum": ["cheapest", "cash_fastest", "max_cash_now", "custom", null]
+        },
+        "weights": {
+          "type": "object",
+          "required": ["cost", "advance", "speed", "tenor", "fees", "structure"],
+          "properties": {
+            "cost":      { "type": "number", "minimum": 0, "maximum": 1 },
+            "advance":   { "type": "number", "minimum": 0, "maximum": 1 },
+            "speed":     { "type": "number", "minimum": 0, "maximum": 1 },
+            "tenor":     { "type": "number", "minimum": 0, "maximum": 1 },
+            "fees":      { "type": "number", "minimum": 0, "maximum": 1 },
+            "structure": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "min_advance_rate": { "type": ["number", "null"] },
+        "max_days_to_cash": { "type": ["integer", "null"] },
+        "preferred_structure": {
+          "type": ["string", "null"],
+          "enum": ["bullet", "instalment", null]
+        },
+        "urgent": { "type": "boolean" }
+      }
+    },
+    "Supplier": {
+      "type": "object",
+      "required": ["supplier_id", "name", "sector", "years_operating", "annual_revenue_lakh", "data_completeness", "preferences", "data_source"],
+      "properties": {
+        "supplier_id":         { "type": "string", "pattern": "^SUP\\d{3}$" },
+        "name":                { "type": "string" },
+        "sector":              { "type": "string" },
+        "city":                { "type": "string" },
+        "years_operating":     { "type": "integer", "minimum": 0 },
+        "annual_revenue_lakh": { "type": "number" },
+        "gstin":               { "type": "string" },
+        "prior_financings":    { "type": "integer", "minimum": 0 },
+        "prior_defaults":      { "type": ["integer", "null"], "minimum": 0 },
+        "data_completeness":   { "type": "number", "minimum": 0, "maximum": 1 },
+        "preferences":         { "$ref": "#/definitions/SupplierPreferences" },
+        "data_source":         { "type": "string", "const": "synthetic" },
+        "field_confidence":    { "type": "object" }
+      }
+    },
+    "Buyer": {
+      "type": "object",
+      "required": ["buyer_id", "name", "sector", "credit_grade", "avg_payment_delay_days", "data_source"],
+      "properties": {
+        "buyer_id":                { "type": "string", "pattern": "^BUY\\d{3}$" },
+        "name":                    { "type": "string" },
+        "sector":                  { "type": "string" },
+        "credit_grade":            { "type": "string", "enum": ["AAA", "AA", "A", "BBB", "BB", "B", "C"] },
+        "avg_payment_delay_days":  { "type": "integer" },
+        "payment_delay_trend":     { "type": "number" },
+        "disputes_last_year":      { "type": ["integer", "null"] },
+        "annual_procurement_lakh": { "type": "number" },
+        "data_source":             { "type": "string", "const": "synthetic" },
+        "field_confidence":        { "type": "object" }
+      }
+    },
+    "Invoice": {
+      "type": "object",
+      "required": ["invoice_id", "supplier_id", "buyer_id", "amount_lakh", "issue_date", "due_date", "tenor_days", "document_hash", "status", "data_source"],
+      "properties": {
+        "invoice_id":          { "type": "string", "pattern": "^INV\\d{3}$" },
+        "supplier_id":         { "type": "string" },
+        "buyer_id":            { "type": "string" },
+        "amount_lakh":         { "type": "number" },
+        "issue_date":          { "type": "string", "format": "date" },
+        "due_date":            { "type": "string", "format": "date" },
+        "tenor_days":          { "type": "integer", "minimum": 1 },
+        "irn":                 { "type": ["string", "null"] },
+        "document_hash":       { "type": "string" },
+        "goods_description":   { "type": "string" },
+        "delivery_confirmed":  { "type": ["boolean", "null"] },
+        "status":              { "type": "string", "enum": ["open", "financed", "settled", "rejected"] },
+        "data_source":         { "type": "string", "const": "synthetic" },
+        "field_confidence":    { "type": "object" }
+      }
+    },
+    "Provider": {
+      "type": "object",
+      "required": ["provider_id", "name", "type", "available_liquidity_lakh", "total_portfolio_lakh", "risk_appetite", "cost_of_funds", "target_return", "data_source"],
+      "properties": {
+        "provider_id":             { "type": "string", "pattern": "^PRV\\d{3}$" },
+        "name":                    { "type": "string" },
+        "type":                    { "type": "string", "enum": ["bank", "nbfc", "fund", "fintech"] },
+        "available_liquidity_lakh": { "type": "number" },
+        "total_portfolio_lakh":    { "type": "number" },
+        "risk_appetite":           { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_ticket_lakh":         { "type": "number" },
+        "max_ticket_lakh":         { "type": "number" },
+        "cost_of_funds":           { "type": "number" },
+        "target_return":           { "type": "number" },
+        "sector_limits":           { "type": "object" },
+        "buyer_limit":             { "type": "number" },
+        "current_exposure":        { "type": "object" },
+        "speed_capability_days":   { "type": "integer", "minimum": 0 },
+        "preferred_structures":    { "type": "array", "items": { "type": "string" } },
+        "data_source":             { "type": "string", "const": "synthetic" }
+      }
+    },
+    "FinancingHistory": {
+      "type": "object",
+      "required": ["invoice_id", "provider_id", "buyer_id", "sector", "amount_lakh", "outcome"],
+      "properties": {
+        "invoice_id":  { "type": "string" },
+        "provider_id": { "type": "string" },
+        "buyer_id":    { "type": "string" },
+        "sector":      { "type": "string" },
+        "amount_lakh": { "type": "number" },
+        "outcome":     { "type": "string", "enum": ["settled", "late", "defaulted"] },
+        "days_late":   { "type": "integer", "minimum": 0 }
+      }
+    },
+    "MarketInput": {
+      "type": "object",
+      "required": ["meta", "suppliers", "buyers", "invoices", "providers"],
+      "properties": {
+        "meta": {
+          "type": "object",
+          "required": ["schema_version", "generated_at", "generator", "seed", "currency_unit"],
+          "properties": {
+            "schema_version": { "type": "string" },
+            "generated_at":   { "type": "string" },
+            "generator":      { "type": "string" },
+            "seed":           { "type": "integer" },
+            "currency_unit":  { "type": "string", "const": "INR_lakh" }
+          }
+        },
+        "suppliers": { "type": "array", "items": { "$ref": "#/definitions/Supplier" } },
+        "buyers":    { "type": "array", "items": { "$ref": "#/definitions/Buyer" } },
+        "invoices":  { "type": "array", "items": { "$ref": "#/definitions/Invoice" } },
+        "providers": { "type": "array", "items": { "$ref": "#/definitions/Provider" } },
+        "financing_history": { "type": "array", "items": { "$ref": "#/definitions/FinancingHistory" } }
+      }
+    },
+    "Verification": {
+      "type": "object",
+      "required": ["status", "irn_valid", "duplicate_detected", "unknown_field_count", "reason_text"],
+      "properties": {
+        "status":              { "type": "string", "enum": ["verified", "rejected"] },
+        "irn_valid":           { "type": "boolean" },
+        "duplicate_detected":  { "type": "boolean" },
+        "duplicate_of":        { "type": ["string", "null"] },
+        "field_confidence":    { "type": "object" },
+        "unknown_field_count": { "type": "integer", "minimum": 0 },
+        "reason_text":         { "type": "string", "minLength": 1 }
+      }
+    },
+    "RiskProfile": {
+      "type": "object",
+      "required": ["pd", "pd_lower", "pd_upper", "uncertainty", "risk_band", "expected_loss_lakh", "reason_text", "reason_factors"],
+      "properties": {
+        "pd":                { "type": "number", "minimum": 0, "maximum": 1 },
+        "pd_lower":          { "type": "number", "minimum": 0, "maximum": 1 },
+        "pd_upper":          { "type": "number", "minimum": 0, "maximum": 1 },
+        "uncertainty":       { "type": "number", "minimum": 0 },
+        "risk_band":         { "type": "string", "enum": ["prime", "standard", "watch", "decline"] },
+        "expected_loss_lakh": { "type": "number" },
+        "reason_text":       { "type": "string", "minLength": 1 },
+        "reason_factors":    { "type": "array", "items": {
+          "type": "object",
+          "required": ["kind", "detail", "weight"],
+          "properties": {
+            "kind":   { "type": "string" },
+            "detail": { "type": "string" },
+            "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }}
+      }
+    },
+    "ProviderEligibility": {
+      "type": "object",
+      "required": ["provider_id", "eligible", "max_fundable_lakh"],
+      "properties": {
+        "provider_id":       { "type": "string" },
+        "eligible":          { "type": "boolean" },
+        "max_fundable_lakh": { "type": "number", "minimum": 0 },
+        "exclusion_reason":  { "type": ["string", "null"] },
+        "binding_constraint": { "type": ["string", "null"], "enum": [
+          "max_ticket", "min_ticket", "liquidity", "risk_appetite",
+          "sector_limit", "buyer_limit", "target_return", null
+        ]}
+      }
+    },
+    "Assessment": {
+      "type": "object",
+      "required": ["invoice_id", "verification", "risk", "eligibility", "meta"],
+      "properties": {
+        "invoice_id":   { "type": "string" },
+        "verification": { "$ref": "#/definitions/Verification" },
+        "risk":         { "$ref": "#/definitions/RiskProfile" },
+        "eligibility":  { "type": "array", "items": { "$ref": "#/definitions/ProviderEligibility" } },
+        "meta":         { "type": "object" }
+      }
+    },
+    "ScoredOffer": {
+      "type": "object",
+      "required": ["offer_id", "invoice_id", "provider_id", "rate_annual", "advance_rate", "tenor_days", "days_to_settle", "repayment_structure", "amount_committed_lakh", "advance_amount_lakh", "total_cost_lakh", "cash_now_lakh", "fit_score", "component_scores", "feasible", "reason_text"],
+      "properties": {
+        "offer_id":              { "type": "string", "pattern": "^OFR\\d{3}$" },
+        "invoice_id":            { "type": "string" },
+        "provider_id":           { "type": "string" },
+        "rate_annual":           { "type": "number" },
+        "advance_rate":          { "type": "number", "minimum": 0, "maximum": 1 },
+        "tenor_days":            { "type": "integer" },
+        "fee_percent":           { "type": "number" },
+        "fee_flat_lakh":         { "type": "number" },
+        "days_to_settle":        { "type": "integer", "minimum": 0 },
+        "repayment_structure":   { "type": "string", "enum": ["bullet", "instalment"] },
+        "amount_committed_lakh": { "type": "number" },
+        "advance_amount_lakh":   { "type": "number" },
+        "total_cost_lakh":       { "type": "number" },
+        "cash_now_lakh":         { "type": "number" },
+        "fit_score":             { "type": "number", "minimum": 0, "maximum": 1 },
+        "component_scores":      { "type": "object" },
+        "feasible":              { "type": "boolean" },
+        "rejection_reason":      { "type": ["string", "null"] },
+        "reason_text":           { "type": "string", "minLength": 1 }
+      }
+    },
+    "Match": {
+      "type": "object",
+      "required": ["match_id", "invoice_id", "allocations", "syndicated", "total_advance_lakh", "blended_rate_annual", "blended_cost_lakh", "supplier_fit_score", "state", "days_to_settle", "reason_text"],
+      "properties": {
+        "match_id":             { "type": "string", "pattern": "^MCH\\d{3}$" },
+        "invoice_id":           { "type": "string" },
+        "allocations":          { "type": "array", "items": {
+          "type": "object",
+          "required": ["provider_id", "amount_lakh", "offer_id"],
+          "properties": {
+            "provider_id": { "type": "string" },
+            "amount_lakh": { "type": "number" },
+            "offer_id":    { "type": "string" }
+          }
+        }},
+        "syndicated":           { "type": "boolean" },
+        "total_advance_lakh":   { "type": "number" },
+        "blended_rate_annual":  { "type": "number" },
+        "blended_cost_lakh":    { "type": "number" },
+        "supplier_fit_score":   { "type": "number" },
+        "state":                { "type": "string", "enum": ["matched", "funded", "settled", "late", "defaulted", "cancelled"] },
+        "days_to_settle":       { "type": "integer" },
+        "reason_text":          { "type": "string", "minLength": 1 }
+      }
+    },
+    "LearningDelta": {
+      "type": "object",
+      "required": ["trigger", "buyer_updates", "repriced_invoices", "liquidity_updates", "provider_bid_adjustments", "summary_text"],
+      "properties": {
+        "trigger":                  { "type": "object" },
+        "buyer_updates":            { "type": "array" },
+        "repriced_invoices":        { "type": "array" },
+        "liquidity_updates":        { "type": "array" },
+        "provider_bid_adjustments": { "type": "array" },
+        "summary_text":             { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

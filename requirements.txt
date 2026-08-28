@@ -1,0 +1,11 @@
+# FitFuse — Python dependencies
+# Intentionally short. Do not add without justification in the PR.
+# See AGENTS.md §5.1
+
+numpy
+fastapi
+uvicorn
+pydantic
+pytest
+ruff
+jsonschema

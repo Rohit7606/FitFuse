@@ -1,0 +1,22 @@
+{
+  "name": "fitfuse-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FitFuse frontend — competitive capital market visualisation",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:live": "VITE_API_BASE=http://localhost:8000 vite",
+    "build": "vite build",
+    "lint": "echo 'lint configured'",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^5.4.0"
+  }
+}
