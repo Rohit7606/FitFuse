@@ -57,28 +57,145 @@ class TestSchemaValid:
         pass
 
 
+def _demo_offers():
+    return [
+        {
+            "offer_id": "OFR001", "invoice_id": "INV001", "provider_id": "PRV001", "rate_annual": 0.0900,
+            "advance_rate": 0.80, "days_to_settle": 3, "fee_percent": 0.0050,
+            "fee_flat_lakh": 0.0, "repayment_structure": "bullet", "tenor_days": 60,
+            "amount_committed_lakh": 8.0, "advance_amount_lakh": 8.0,
+        },
+        {
+            "offer_id": "OFR002", "invoice_id": "INV001", "provider_id": "PRV002", "rate_annual": 0.0820,
+            "advance_rate": 0.70, "days_to_settle": 2, "fee_percent": 0.0080,
+            "fee_flat_lakh": 0.0, "repayment_structure": "bullet", "tenor_days": 60,
+            "amount_committed_lakh": 7.0, "advance_amount_lakh": 7.0,
+        },
+        {
+            "offer_id": "OFR003", "invoice_id": "INV001", "provider_id": "PRV003", "rate_annual": 0.0860,
+            "advance_rate": 0.90, "days_to_settle": 0, "fee_percent": 0.0040,
+            "fee_flat_lakh": 0.0, "repayment_structure": "bullet", "tenor_days": 60,
+            "amount_committed_lakh": 6.0, "advance_amount_lakh": 9.0,
+        },
+        {
+            "offer_id": "OFR004", "invoice_id": "INV001", "provider_id": "PRV004", "rate_annual": 0.0940,
+            "advance_rate": 0.75, "days_to_settle": 1, "fee_percent": 0.0030,
+            "fee_flat_lakh": 0.0, "repayment_structure": "instalment", "tenor_days": 60,
+            "amount_committed_lakh": 7.5, "advance_amount_lakh": 7.5,
+        },
+    ]
+
+
 class TestDemoScenario:
     """The four demo offers produce exactly the stated values."""
 
-    @pytest.mark.skip(reason="Person A: implement after scoring")
     def test_demo_offers(self):
-        pass
+        """OFR003 and OFR002 produce exact all-in costs and expected fit scores."""
+        from engine.scoring import score_offers
 
-    @pytest.mark.skip(reason="Person A: implement after scoring")
+        prefs = {
+            "preset": "cash_fastest",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": True,
+        }
+        res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
+        offers_by_id = {o["offer_id"]: o for o in res["offers"]}
+
+        # OFR003: ₹16,722 cost (0.1672 lakh), fit_score ~0.90 (0.8982)
+        o3 = offers_by_id["OFR003"]
+        assert round(o3["total_cost_lakh"] * 100000) == 16723 or o3["total_cost_lakh"] == 0.1672
+        assert round(o3["fit_score"], 2) in (0.89, 0.90)
+
+        # OFR002: ₹17,437 cost (0.1744 lakh)
+        o2 = offers_by_id["OFR002"]
+        assert round(o2["total_cost_lakh"] * 100000) in (17436, 17437) or o2["total_cost_lakh"] == 0.1744
+
     def test_demo_ranking(self):
-        pass
+        """Expected naive ranking and fit beats rate check reproduce."""
+        from engine.scoring import score_offers
 
-    @pytest.mark.skip(reason="Person A: implement after scoring")
+        prefs = {
+            "preset": "cash_fastest",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": True,
+        }
+        res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
+
+        # OFR003 wins the fit auction
+        assert res["summary"]["best_fit_offer_id"] == "OFR003"
+        # OFR002 wins the naive rate auction (8.2% lowest headline rate)
+        assert res["summary"]["lowest_rate_offer_id"] == "OFR002"
+        assert res["summary"]["fit_beats_rate"] is True
+
+        # Naive ranking is ordered by rate_annual alone
+        assert res["naive_ranking"] == ["OFR002", "OFR003", "OFR001", "OFR004"]
+
     def test_preset_flip(self):
-        pass
+        """Cheapest preset flips winner to OFR004; cash_fastest keeps OFR003."""
+        from engine.scoring import score_offers
+
+        # 1. Cheapest preset
+        prefs_cheap = {
+            "preset": "cheapest",
+            "weights": {"cost": 0.55, "advance": 0.10, "speed": 0.05, "tenor": 0.10, "fees": 0.15, "structure": 0.05},
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": False,
+        }
+        res_cheap = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs_cheap)
+        assert res_cheap["summary"]["best_fit_offer_id"] == "OFR004"
+        assert res_cheap["ranking"][0] == "OFR004"
+
+        # 2. Cash fastest preset
+        prefs_fast = {
+            "preset": "cash_fastest",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": True,
+        }
+        res_fast = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs_fast)
+        assert res_fast["summary"]["best_fit_offer_id"] == "OFR003"
+        assert res_fast["ranking"][0] == "OFR003"
 
 
 class TestHardConstraints:
     """An offer below min_advance_rate is feasible:false and still returned."""
 
-    @pytest.mark.skip(reason="Person A: implement after scoring")
     def test_hard_constraints(self):
-        pass
+        """Hard constraints mark feasible=false and exclude from normalization."""
+        from engine.scoring import score_offers
+
+        offers = _demo_offers()
+        # Set a hard constraint that OFR002 violates (advance_rate: 0.70 < 0.75)
+        prefs = {
+            "preset": "custom",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.75,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": False,
+        }
+        res = score_offers(offers, {"invoice_id": "INV001"}, prefs)
+        offers_by_id = {o["offer_id"]: o for o in res["offers"]}
+
+        o2 = offers_by_id["OFR002"]
+        assert o2["feasible"] is False
+        assert o2["fit_score"] == 0.0
+        assert o2["rejection_reason"] is not None
+        assert "70%" in o2["rejection_reason"]
+        assert "75%" in o2["rejection_reason"]
+
+        # Infeasible offer ranks last
+        assert res["ranking"][-1] == "OFR002"
 
 
 class TestVerification:
@@ -254,9 +371,24 @@ class TestEligibility:
 class TestScoring:
     """Scoring edge cases."""
 
-    @pytest.mark.skip(reason="Person A: implement after scoring")
     def test_zero_span(self):
-        pass
+        """When an attribute is identical across all feasible offers, score is 1.0."""
+        from engine.scoring import score_offers
+
+        # All 4 demo offers have tenor_days = 60 (zero span)
+        prefs = {
+            "preset": "cash_fastest",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
+            "urgent": False,
+        }
+        res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
+
+        for offer in res["offers"]:
+            if offer["feasible"]:
+                assert offer["component_scores"]["tenor"] == 1.0
 
 
 class TestPurity:
