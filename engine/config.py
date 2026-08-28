@@ -18,7 +18,8 @@ MOCK_SEED = 42  # Deterministic generation; same seed → byte-identical file
 # ---------------------------------------------------------------------------
 
 # Intercept: baseline logit before any factor contributes
-B0 = -4.5
+# Tuned so INV001 (AA buyer, 4-day delay, 60-day tenor) produces pd ≈ 0.021
+B0 = -4.77
 
 # Buyer credit-grade penalty weight — the primary risk driver (SCHEMA.md §2.6)
 B_GRADE = 2.0
@@ -86,9 +87,9 @@ GRADE_PENALTY = {
 # ---------------------------------------------------------------------------
 
 BASE_UNCERTAINTY = 0.003          # Minimum uncertainty; never claim zero
-UNKNOWN_FIELD_PENALTY = 0.002     # Per unknown field
+UNKNOWN_FIELD_PENALTY = 0.003     # Per unknown field — tuned so 1 unknown widens INV001 band to ±0.007
 INFERRED_FIELD_PENALTY = 0.001    # Per inferred field
-THIN_FILE_PENALTY = 0.006         # Scaled by (1 - data_completeness)
+THIN_FILE_PENALTY = 0.020         # Scaled by (1 - data_completeness) — tuned for demo uncertainty band
 NEW_SUPPLIER_PENALTY = 0.004      # Applied if years_operating < 3
 
 # ---------------------------------------------------------------------------
@@ -96,8 +97,8 @@ NEW_SUPPLIER_PENALTY = 0.004      # Applied if years_operating < 3
 # ---------------------------------------------------------------------------
 
 RISK_BAND_THRESHOLDS = {
-    "prime":    0.025,   # pd_upper < 0.025
-    "standard": 0.060,   # pd_upper 0.025 – 0.060
+    "prime":    0.030,   # pd_upper < 0.030 — aligned with DEMO_SCENARIO.md (INV001 pd_upper ≈ 0.028)
+    "standard": 0.060,   # pd_upper 0.030 – 0.060
     "watch":    0.120,   # pd_upper 0.060 – 0.120
     # "decline": pd_upper >= 0.120
 }
