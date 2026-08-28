@@ -44,8 +44,10 @@ function ProviderRow({ provider }) {
     background: 'var(--bg-elevated)'
   };
 
-  const availablePercent = (available_liquidity_lakh / total_portfolio_lakh) * 100;
-  const fundablePercent = (max_fundable_lakh / total_portfolio_lakh) * 100;
+  // Scale relative to available liquidity instead of total portfolio to make it visible on a projector
+  // Enforce a minimum width of 4% for the fundable notch so it never shrinks to sub-pixel sizes
+  const availablePercent = 100;
+  const fundablePercent = max_fundable_lakh > 0 ? Math.max((max_fundable_lakh / available_liquidity_lakh) * 100, 4) : 0;
 
   return (
     <motion.div 
@@ -88,8 +90,8 @@ function ProviderRow({ provider }) {
           }} title={`Sector Limit Cap: ${formatLakh(max_fundable_lakh)}`} />
         </div>
         <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-          <span>Total Portfolio: {formatLakh(total_portfolio_lakh)}</span>
           <span>Available: {formatLakh(available_liquidity_lakh)}</span>
+          <span>Total Portfolio: {formatLakh(total_portfolio_lakh)}</span>
         </div>
       </div>
 

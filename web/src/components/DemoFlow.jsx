@@ -4,6 +4,7 @@ import VerificationPanel from './VerificationPanel.jsx';
 import RiskPanel from './RiskPanel.jsx';
 import OfferComparison from './OfferComparison.jsx';
 import PreferenceSliders from './PreferenceSliders.jsx';
+import ProviderPanel from './ProviderPanel.jsx';
 
 // Default weights from DEMO_SCENARIO.md
 const DEFAULT_WEIGHTS = {
@@ -20,6 +21,7 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
   const [debouncedWeights, setDebouncedWeights] = useState(DEFAULT_WEIGHTS);
 
   const [assessment, setAssessment] = useState(null);
+  const [market, setMarket] = useState(null);
   const [offersData, setOffersData] = useState(null);
   const [isNaive, setIsNaive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,8 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
           offersRes.ranking = offersRes.ranking.map(id => offersRes.offers.find(o => o.offer_id === id));
           offersRes.naive_ranking = offersRes.naive_ranking.map(id => offersRes.offers.find(o => o.offer_id === id));
 
-          // Note: we don't need to store market in state since we just map it
+          // Store market for ProviderPanel
+          setMarket(marketRes);
           setAssessment(assessRes.assessment);
           setOffersData(offersRes);
           setLoading(false);
@@ -130,6 +133,13 @@ export default function DemoFlow({ invoiceId = 'INV001' }) {
       <div className="panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-xl)' }}>
         <VerificationPanel assessment={assessment} />
         <RiskPanel assessment={assessment} />
+      </div>
+
+      <div style={{ marginBottom: 'var(--space-2xl)' }}>
+        <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--space-md)' }}>
+          Provider Market
+        </h2>
+        <ProviderPanel providers={market?.providers} eligibility={assessment?.eligibility} />
       </div>
 
       <div style={{ marginBottom: 'var(--space-2xl)' }}>
