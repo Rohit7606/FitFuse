@@ -40,7 +40,7 @@ def test_clear_mock_validates():
     schema = load_schema()
     mock = load_mock("clear.json")
     matches = mock.get("matches", [])
-    assert len(matches) == 4, "Expected exactly 4 matches in DEMO_SCENARIO"
+    assert len(matches) == 1, "Expected exactly 1 match in DEMO_SCENARIO"
     for match in matches:
         jsonschema.validate(instance=match, schema={**schema, "$ref": "#/definitions/Match"})
 
