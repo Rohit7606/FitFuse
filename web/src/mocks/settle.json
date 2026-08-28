@@ -1,3 +1,111 @@
 {
-  "_comment": "Placeholder — Person C: replace with settle response matching SCHEMA.md §5.6"
+  "before": {
+    "match": {
+      "match_id": "MCH001",
+      "invoice_id": "INV001",
+      "allocations": [
+        { "provider_id": "PRV003", "amount_lakh": 6.00, "offer_id": "OFR003" },
+        { "provider_id": "PRV001", "amount_lakh": 3.00, "offer_id": "OFR001" }
+      ],
+      "syndicated": true,
+      "total_advance_lakh": 9.00,
+      "blended_rate_annual": 0.0873,
+      "blended_cost_lakh": 0.17,
+      "supplier_fit_score": 0.8600,
+      "state": "funded",
+      "days_to_settle": 0,
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Meridian Bank funds the remaining ₹3.00 lakh."
+    },
+    "affected_invoices": [
+      {
+        "invoice_id": "INV014",
+        "pd": 0.0210,
+        "pd_lower": 0.0140,
+        "pd_upper": 0.0280,
+        "uncertainty": 0.0070,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.13,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          { "kind": "buyer_grade",     "detail": "Buyer rated AA",      "weight": 0.45 },
+          { "kind": "payment_history", "detail": "4-day average delay", "weight": 0.25 },
+          { "kind": "tenor",           "detail": "60-day tenor",        "weight": 0.15 },
+          { "kind": "data_quality",    "detail": "Delivery confirmed",  "weight": 0.15 }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "match": {
+      "match_id": "MCH001",
+      "invoice_id": "INV001",
+      "allocations": [
+        { "provider_id": "PRV003", "amount_lakh": 6.00, "offer_id": "OFR003" },
+        { "provider_id": "PRV001", "amount_lakh": 3.00, "offer_id": "OFR001" }
+      ],
+      "syndicated": true,
+      "total_advance_lakh": 9.00,
+      "blended_rate_annual": 0.0873,
+      "blended_cost_lakh": 0.17,
+      "supplier_fit_score": 0.8600,
+      "state": "late",
+      "days_to_settle": 0,
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Meridian Bank funds the remaining ₹3.00 lakh."
+    },
+    "affected_invoices": [
+      {
+        "invoice_id": "INV014",
+        "pd": 0.0265,
+        "pd_lower": 0.0185,
+        "pd_upper": 0.0345,
+        "uncertainty": 0.0080,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.16,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Delay trend increased after late payment on INV001.",
+        "reason_factors": [
+          { "kind": "buyer_grade",     "detail": "Buyer rated AA",             "weight": 0.40 },
+          { "kind": "payment_history", "detail": "5-day average delay (+1 d)", "weight": 0.30 },
+          { "kind": "tenor",           "detail": "60-day tenor",               "weight": 0.15 },
+          { "kind": "data_quality",    "detail": "Delivery confirmed",         "weight": 0.15 }
+        ]
+      }
+    ]
+  },
+  "delta": {
+    "trigger": { "match_id": "MCH001", "outcome": "late", "days_late": 5 },
+    "buyer_updates": [
+      {
+        "buyer_id": "BUY001",
+        "avg_payment_delay_before": 4,
+        "avg_payment_delay_after": 5,
+        "payment_delay_trend_before": 0.0,
+        "payment_delay_trend_after": 1.0
+      }
+    ],
+    "repriced_invoices": [
+      {
+        "invoice_id": "INV014",
+        "pd_before": 0.0210,
+        "pd_after": 0.0265,
+        "band_before": "prime",
+        "band_after": "standard"
+      }
+    ],
+    "liquidity_updates": [
+      {
+        "provider_id": "PRV003",
+        "available_before_lakh": 494.00,
+        "available_after_lakh": 500.00
+      }
+    ],
+    "provider_bid_adjustments": [
+      {
+        "provider_id": "PRV003",
+        "segment": "auto_components/AA/60d",
+        "rate_adjustment": 0.0015,
+        "reason": "Observed 5-day delay on BUY001"
+      }
+    ],
+    "summary_text": "Vireon Motors paid 5 days late. One other invoice on this buyer was repriced and Kestrel Credit Fund raised its rate on this segment by 15 basis points."
+  }
 }

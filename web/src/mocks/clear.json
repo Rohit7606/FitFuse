@@ -1,3 +1,26 @@
 {
-  "_comment": "Placeholder — Person C: replace with clear response matching SCHEMA.md §5.5"
+  "matches": [
+    {
+      "match_id": "MCH001",
+      "invoice_id": "INV001",
+      "allocations": [
+        { "provider_id": "PRV003", "amount_lakh": 6.00, "offer_id": "OFR003" },
+        { "provider_id": "PRV001", "amount_lakh": 3.00, "offer_id": "OFR001" }
+      ],
+      "syndicated": true,
+      "total_advance_lakh": 9.00,
+      "blended_rate_annual": 0.0873,
+      "blended_cost_lakh": 0.17,
+      "supplier_fit_score": 0.8600,
+      "state": "matched",
+      "days_to_settle": 0,
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Meridian Bank funds the remaining ₹3.00 lakh."
+    }
+  ],
+  "unmatched": [],
+  "provider_utilisation": [
+    { "provider_id": "PRV003", "committed_lakh": 6.00, "remaining_lakh": 494.00, "utilisation": 0.0120 },
+    { "provider_id": "PRV001", "committed_lakh": 3.00, "remaining_lakh": 1997.00, "utilisation": 0.0003 }
+  ],
+  "summary": { "matched_count": 1, "syndicated_count": 1, "iterations": 3, "stable": true }
 }

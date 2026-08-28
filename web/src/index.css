@@ -1,0 +1,355 @@
+/* ============================================================
+   FitFuse — Design System
+   Owner: Person C
+   
+   Design for projector: larger fonts, high contrast, 1280×720.
+   All values simulated (AGENTS.md §3.7).
+   ============================================================ */
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Colour palette — dark theme, high contrast for projector */
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #111827;
+  --bg-card: #1a1f2e;
+  --bg-card-hover: #222840;
+  --bg-surface: rgba(255, 255, 255, 0.04);
+  --bg-glass: rgba(26, 31, 46, 0.85);
+
+  --text-primary: #f0f2f5;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  --accent-primary: #6366f1;   /* Indigo — fit score, primary actions */
+  --accent-success: #10b981;   /* Emerald — verified, eligible */
+  --accent-warning: #f59e0b;   /* Amber — watch, inferred */
+  --accent-danger: #ef4444;    /* Red — rejected, excluded, declined */
+  --accent-info: #3b82f6;      /* Blue — informational */
+
+  /* Provider type colours */
+  --type-bank: #6366f1;
+  --type-nbfc: #8b5cf6;
+  --type-fund: #06b6d4;
+  --type-fintech: #f59e0b;
+
+  /* Risk band colours */
+  --band-prime: #10b981;
+  --band-standard: #f59e0b;
+  --band-watch: #ef4444;
+  --band-decline: #991b1b;
+
+  /* Field confidence colours */
+  --confidence-verified: #10b981;
+  --confidence-inferred: #f59e0b;
+  --confidence-unknown: #ef4444;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Border */
+  --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
+  --border-card: 1px solid rgba(255, 255, 255, 0.10);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Shadow */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.4);
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.5rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-reorder: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* --- Utility classes --- */
+
+.synthetic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.synthetic-badge::before {
+  content: '◆';
+  font-size: 6px;
+  color: var(--accent-warning);
+}
+
+/* Provider type badge */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.type-badge--bank     { background: rgba(99, 102, 241, 0.15); color: var(--type-bank); }
+.type-badge--nbfc     { background: rgba(139, 92, 246, 0.15); color: var(--type-nbfc); }
+.type-badge--fund     { background: rgba(6, 182, 212, 0.15);  color: var(--type-fund); }
+.type-badge--fintech  { background: rgba(245, 158, 11, 0.15); color: var(--type-fintech); }
+
+/* Risk band chip */
+.risk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 3px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.risk-chip--prime    { background: rgba(16, 185, 129, 0.15); color: var(--band-prime); }
+.risk-chip--standard { background: rgba(245, 158, 11, 0.15); color: var(--band-standard); }
+.risk-chip--watch    { background: rgba(239, 68, 68, 0.15);  color: var(--band-watch); }
+.risk-chip--decline  { background: rgba(153, 27, 27, 0.15);  color: var(--band-decline); }
+
+.risk-chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.risk-chip--prime::before    { background: var(--band-prime); }
+.risk-chip--standard::before { background: var(--band-standard); }
+.risk-chip--watch::before    { background: var(--band-watch); }
+.risk-chip--decline::before  { background: var(--band-decline); }
+
+/* Field confidence badges */
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border-radius: 100px;
+}
+
+.confidence-badge--verified { background: rgba(16, 185, 129, 0.12); color: var(--confidence-verified); }
+.confidence-badge--inferred { background: rgba(245, 158, 11, 0.12); color: var(--confidence-inferred); }
+.confidence-badge--unknown  { background: rgba(239, 68, 68, 0.12);  color: var(--confidence-unknown); }
+
+.confidence-badge__icon {
+  font-size: 10px;
+}
+
+/* --- Layout --- */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-xl);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-bottom: var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.app-header__title {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent-primary), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.app-header__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-left: var(--space-sm);
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--space-xl);
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* --- Card base --- */
+.card {
+  background: var(--bg-card);
+  border: var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-elevated);
+}
+
+.card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.card__title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* --- Section headers --- */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+}
+
+.section-header__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-header__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+/* --- Grid layouts --- */
+.offers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+
+.providers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-md);
+}
+
+/* --- Panels layout --- */
+.panels-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease forwards;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

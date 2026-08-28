@@ -1,3 +1,77 @@
 {
-  "_comment": "Placeholder — Person C: replace with assess response matching SCHEMA.md §4.1"
+  "invoice_id": "INV001",
+  "verification": {
+    "status": "verified",
+    "irn_valid": true,
+    "duplicate_detected": false,
+    "duplicate_of": null,
+    "field_confidence": {
+      "amount_lakh": "verified",
+      "buyer_gstin": "verified",
+      "tenor_days": "verified",
+      "delivery_confirmed": "unknown"
+    },
+    "unknown_field_count": 1,
+    "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmation is unavailable."
+  },
+  "risk": {
+    "pd": 0.0210,
+    "pd_lower": 0.0140,
+    "pd_upper": 0.0280,
+    "uncertainty": 0.0070,
+    "risk_band": "prime",
+    "expected_loss_lakh": 0.15,
+    "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+    "reason_factors": [
+      { "kind": "buyer_grade",       "detail": "Buyer rated AA",                    "weight": 0.45 },
+      { "kind": "payment_history",   "detail": "4-day average delay",               "weight": 0.25 },
+      { "kind": "tenor",             "detail": "60-day tenor",                      "weight": 0.15 },
+      { "kind": "unverified_fields", "detail": "Delivery confirmation unavailable", "weight": 0.15 }
+    ]
+  },
+  "eligibility": [
+    {
+      "provider_id": "PRV001",
+      "eligible": true,
+      "max_fundable_lakh": 10.00,
+      "exclusion_reason": null,
+      "binding_constraint": null
+    },
+    {
+      "provider_id": "PRV002",
+      "eligible": true,
+      "max_fundable_lakh": 10.00,
+      "exclusion_reason": null,
+      "binding_constraint": null
+    },
+    {
+      "provider_id": "PRV003",
+      "eligible": true,
+      "max_fundable_lakh": 6.00,
+      "exclusion_reason": null,
+      "binding_constraint": "sector_limit"
+    },
+    {
+      "provider_id": "PRV004",
+      "eligible": true,
+      "max_fundable_lakh": 10.00,
+      "exclusion_reason": null,
+      "binding_constraint": null
+    },
+    {
+      "provider_id": "PRV005",
+      "eligible": false,
+      "max_fundable_lakh": 0.00,
+      "exclusion_reason": "Invoice of ₹10.00 lakh exceeds Coastal Cooperative Bank's ₹8.00 lakh maximum ticket size.",
+      "binding_constraint": "max_ticket"
+    },
+    {
+      "provider_id": "PRV006",
+      "eligible": false,
+      "max_fundable_lakh": 0.00,
+      "exclusion_reason": "Invoice upper risk estimate of 2.80% exceeds Sentinel Asset Managers' 1.50% risk appetite threshold.",
+      "binding_constraint": "risk_appetite"
+    }
+  ],
+  "meta": { "schema_version": "1.0", "engine_version": "1.0" }
 }
