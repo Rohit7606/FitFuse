@@ -1,5 +1,4 @@
 {
-  "_comment": "Placeholder mock — Person C: replace with full market mock matching SCHEMA.md §3",
   "meta": {
     "schema_version": "1.0",
     "generated_at": "2026-08-28T00:00:00Z",
@@ -7,8 +6,239 @@
     "seed": 42,
     "currency_unit": "INR_lakh"
   },
-  "suppliers": [],
-  "buyers": [],
-  "invoices": [],
-  "providers": []
+  "suppliers": [
+    {
+      "supplier_id": "SUP001",
+      "name": "Sharda Auto Components Pvt Ltd",
+      "sector": "auto_components",
+      "city": "Pune",
+      "years_operating": 7,
+      "annual_revenue_lakh": 480.00,
+      "gstin": "27AADCS1234E1Z1",
+      "prior_financings": 12,
+      "prior_defaults": 0,
+      "data_completeness": 0.95,
+      "preferences": {
+        "preset": "cash_fastest",
+        "weights": {
+          "cost": 0.15,
+          "advance": 0.30,
+          "speed": 0.35,
+          "tenor": 0.10,
+          "fees": 0.05,
+          "structure": 0.05
+        },
+        "min_advance_rate": 0.70,
+        "max_days_to_cash": 5,
+        "preferred_structure": "bullet",
+        "urgent": true
+      },
+      "data_source": "synthetic",
+      "field_confidence": {}
+    }
+  ],
+  "buyers": [
+    {
+      "buyer_id": "BUY001",
+      "name": "Vireon Motors India Ltd",
+      "sector": "automotive_oem",
+      "credit_grade": "AA",
+      "avg_payment_delay_days": 4,
+      "payment_delay_trend": 0.0,
+      "disputes_last_year": 0,
+      "annual_procurement_lakh": 42000.00,
+      "data_source": "synthetic",
+      "field_confidence": {}
+    }
+  ],
+  "invoices": [
+    {
+      "invoice_id": "INV001",
+      "supplier_id": "SUP001",
+      "buyer_id": "BUY001",
+      "amount_lakh": 10.00,
+      "issue_date": "2026-08-20",
+      "due_date": "2026-10-19",
+      "tenor_days": 60,
+      "irn": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      "document_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "goods_description": "hydraulic_seal_kits",
+      "delivery_confirmed": null,
+      "status": "open",
+      "data_source": "synthetic",
+      "field_confidence": {
+        "amount_lakh": "verified",
+        "irn": "verified",
+        "delivery_confirmed": "unknown"
+      }
+    },
+    {
+      "invoice_id": "INV002",
+      "supplier_id": "SUP002",
+      "buyer_id": "BUY001",
+      "amount_lakh": 10.00,
+      "issue_date": "2026-08-20",
+      "due_date": "2026-10-19",
+      "tenor_days": 60,
+      "irn": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+      "document_hash": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "goods_description": "hydraulic_seal_kits",
+      "delivery_confirmed": null,
+      "status": "open",
+      "data_source": "synthetic",
+      "field_confidence": {
+        "amount_lakh": "verified",
+        "irn": "verified",
+        "delivery_confirmed": "unknown"
+      }
+    },
+    {
+      "invoice_id": "INV014",
+      "supplier_id": "SUP003",
+      "buyer_id": "BUY001",
+      "amount_lakh": 8.50,
+      "issue_date": "2026-08-15",
+      "due_date": "2026-10-14",
+      "tenor_days": 60,
+      "irn": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+      "document_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "goods_description": "engine_gaskets",
+      "delivery_confirmed": true,
+      "status": "open",
+      "data_source": "synthetic",
+      "field_confidence": {
+        "amount_lakh": "verified",
+        "irn": "verified",
+        "delivery_confirmed": "verified"
+      }
+    }
+  ],
+  "providers": [
+    {
+      "provider_id": "PRV001",
+      "name": "Meridian Bank",
+      "type": "bank",
+      "available_liquidity_lakh": 2000.00,
+      "total_portfolio_lakh": 10000.00,
+      "risk_appetite": 0.10,
+      "min_ticket_lakh": 1.00,
+      "max_ticket_lakh": 500.00,
+      "cost_of_funds": 0.050,
+      "target_return": 0.080,
+      "sector_limits": { "auto_components": 0.25, "textiles": 0.15 },
+      "buyer_limit": 0.15,
+      "current_exposure": {
+        "by_sector": { "auto_components": 1180.00, "textiles": 1450.00 },
+        "by_buyer": { "BUY001": 210.00 }
+      },
+      "speed_capability_days": 3,
+      "preferred_structures": ["bullet"],
+      "data_source": "synthetic"
+    },
+    {
+      "provider_id": "PRV002",
+      "name": "Arcline Capital",
+      "type": "nbfc",
+      "available_liquidity_lakh": 1000.00,
+      "total_portfolio_lakh": 5000.00,
+      "risk_appetite": 0.15,
+      "min_ticket_lakh": 0.50,
+      "max_ticket_lakh": 200.00,
+      "cost_of_funds": 0.080,
+      "target_return": 0.120,
+      "sector_limits": { "auto_components": 0.30, "textiles": 0.25 },
+      "buyer_limit": 0.20,
+      "current_exposure": {
+        "by_sector": { "auto_components": 640.00 },
+        "by_buyer": { "BUY001": 145.00 }
+      },
+      "speed_capability_days": 2,
+      "preferred_structures": ["bullet"],
+      "data_source": "synthetic"
+    },
+    {
+      "provider_id": "PRV003",
+      "name": "Kestrel Credit Fund",
+      "type": "fund",
+      "available_liquidity_lakh": 500.00,
+      "total_portfolio_lakh": 500.00,
+      "risk_appetite": 0.20,
+      "min_ticket_lakh": 1.00,
+      "max_ticket_lakh": 200.00,
+      "cost_of_funds": 0.060,
+      "target_return": 0.150,
+      "sector_limits": { "auto_components": 0.20, "electronics": 0.30 },
+      "buyer_limit": 0.15,
+      "current_exposure": {
+        "by_sector": { "auto_components": 94.00, "electronics": 61.50 },
+        "by_buyer": { "BUY001": 20.00 }
+      },
+      "speed_capability_days": 0,
+      "preferred_structures": ["bullet"],
+      "data_source": "synthetic"
+    },
+    {
+      "provider_id": "PRV004",
+      "name": "Nimbus Finserv",
+      "type": "fintech",
+      "available_liquidity_lakh": 800.00,
+      "total_portfolio_lakh": 2000.00,
+      "risk_appetite": 0.25,
+      "min_ticket_lakh": 0.10,
+      "max_ticket_lakh": 100.00,
+      "cost_of_funds": 0.070,
+      "target_return": 0.140,
+      "sector_limits": { "auto_components": 0.35, "fmcg": 0.30 },
+      "buyer_limit": 0.25,
+      "current_exposure": {
+        "by_sector": { "auto_components": 402.00 },
+        "by_buyer": { "BUY001": 88.00 }
+      },
+      "speed_capability_days": 1,
+      "preferred_structures": ["instalment"],
+      "data_source": "synthetic"
+    },
+    {
+      "provider_id": "PRV005",
+      "name": "Coastal Cooperative Bank",
+      "type": "bank",
+      "available_liquidity_lakh": 300.00,
+      "total_portfolio_lakh": 800.00,
+      "risk_appetite": 0.08,
+      "min_ticket_lakh": 0.50,
+      "max_ticket_lakh": 8.00,
+      "cost_of_funds": 0.050,
+      "target_return": 0.070,
+      "sector_limits": { "auto_components": 0.20, "agriculture": 0.35 },
+      "buyer_limit": 0.12,
+      "current_exposure": {
+        "by_sector": { "auto_components": 96.00 },
+        "by_buyer": { "BUY001": 14.00 }
+      },
+      "speed_capability_days": 4,
+      "preferred_structures": ["bullet", "instalment"],
+      "data_source": "synthetic"
+    },
+    {
+      "provider_id": "PRV006",
+      "name": "Sentinel Asset Managers",
+      "type": "fund",
+      "available_liquidity_lakh": 1500.00,
+      "total_portfolio_lakh": 8000.00,
+      "risk_appetite": 0.015,
+      "min_ticket_lakh": 5.00,
+      "max_ticket_lakh": 300.00,
+      "cost_of_funds": 0.040,
+      "target_return": 0.100,
+      "sector_limits": { "auto_components": 0.25, "pharmaceuticals": 0.30 },
+      "buyer_limit": 0.18,
+      "current_exposure": {
+        "by_sector": { "auto_components": 1240.00 },
+        "by_buyer": { "BUY001": 300.00 }
+      },
+      "speed_capability_days": 1,
+      "preferred_structures": ["bullet"],
+      "data_source": "synthetic"
+    }
+  ]
 }
