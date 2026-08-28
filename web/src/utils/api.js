@@ -26,7 +26,8 @@ async function apiFetch(endpoint, options = {}) {
     const loader = mockMap[endpoint];
     if (loader) {
       const mod = await loader();
-      return mod.default;
+      // Deep clone the mock to prevent cached object mutation bugs across re-renders
+      return JSON.parse(JSON.stringify(mod.default));
     }
     throw new Error(`No mock for ${endpoint}`);
   }
