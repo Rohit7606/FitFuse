@@ -134,7 +134,20 @@ def generate_market(seed=MOCK_SEED):
         "field_confidence": {}
     }
 
-    # Providers
+    # Providers.
+    #
+    # Provenance of target_margin, raised in review and worth stating plainly:
+    # these four values are CALIBRATED, not independently derived. Each is
+    #     demo_rate - cost_of_funds - (expected_loss + capital_charge + shade)
+    # so that market/agents.py prices each provider at its DEMO_SCENARIO.md §4
+    # rate. PERSON_B.md §3.1 sanctions exactly this ("per-type constants tuned
+    # in config.py — that is expected and fine"), but it does mean a test
+    # asserting those rates checks arithmetic rather than economics. The
+    # independent checks live in tests/market/ as test_rate_responds_to_risk
+    # and test_margins_are_economically_ordered.
+    #
+    # cost_of_funds is NOT reverse-solved — it is ordered by funding model:
+    # a bank funds itself most cheaply, an NBFC most expensively.
     prv001 = {
         "provider_id": "PRV001",
         "name": "Meridian Bank",

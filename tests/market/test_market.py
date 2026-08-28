@@ -158,7 +158,12 @@ class TestAgents:
         assert len({o["repayment_structure"] for o in demo_offers.values()}) > 1
 
     def test_never_below_cost(self, providers, invoice):
-        """A hard invariant, at any uncertainty — PERSON_B.md §3.1."""
+        """A hard invariant, at any uncertainty — PERSON_B.md §3.1.
+
+        Note this sweep never actually fires the floor: every term added to
+        cost_of_funds is positive, so the sum always clears it. See
+        test_floor_binds_on_negative_margin for the case that does.
+        """
         from market.agents import generate_offer
         elig = {"eligible": True, "max_fundable_lakh": 99.0}
         for pid, p in sorted(providers.items()):
@@ -167,6 +172,67 @@ class TestAgents:
                 a["risk"]["uncertainty"] = uncertainty
                 offer = generate_offer(p, invoice, a, elig)
                 assert offer["rate_annual"] >= p["cost_of_funds"], pid
+
+    def test_floor_binds_on_negative_margin(self, providers, invoice):
+        """Exercise the max(required, cost_of_funds) branch itself.
+
+        Raised by Person A in review: with every additive term positive, the
+        floor is unreachable and the guard was effectively untested. A negative
+        target_margin drives the unfloored rate below funding cost, which is
+        the only way to prove the clamp works rather than assuming it.
+        """
+        from market.agents import generate_offer
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+        for pid, p in sorted(providers.items()):
+            underwater = {**p, "target_margin": -0.50}
+            a = _assessment(providers, [pid])
+            offer = generate_offer(underwater, invoice, a, elig)
+            assert offer["rate_annual"] == round(p["cost_of_funds"], 4), (
+                f"{pid} should clamp to its cost of funds, got {offer['rate_annual']}"
+            )
+
+    def test_rate_responds_to_risk(self, providers, invoice):
+        """Independent of the demo calibration: pricing must track its inputs.
+
+        The demo-rate tests are self-consistent by construction — target_margin
+        was calibrated so each provider lands on its DEMO_SCENARIO.md §4 rate,
+        so asserting that rate proves arithmetic, not economics. These checks
+        vary one input at a time and assert the direction of the response,
+        which holds whatever the constants are tuned to.
+        """
+        from market.agents import generate_offer
+        p = providers["PRV003"]
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+
+        def rate(**risk):
+            a = _assessment(providers, ["PRV003"])
+            a["risk"].update(risk)
+            return generate_offer(p, invoice, a, elig)["rate_annual"]
+
+        base = rate()
+        assert rate(pd=0.0500) > base, "higher default probability must cost more"
+        assert rate(pd_upper=0.0600) > base, "a wider band must cost more"
+        assert rate(pd=0.0050, pd_upper=0.0100) < base, "safer must cost less"
+
+        # And a dearer funder must bid higher, all else equal.
+        dearer = {**p, "cost_of_funds": p["cost_of_funds"] + 0.02}
+        a = _assessment(providers, ["PRV003"])
+        assert generate_offer(dearer, invoice, a, elig)["rate_annual"] > base
+
+    def test_margins_are_economically_ordered(self, providers):
+        """A sanity check the calibration cannot fake.
+
+        Whatever the target_margin values are tuned to, funding costs must stay
+        in a plausible order — a bank funds itself more cheaply than an NBFC.
+        If a future retune inverts that, the market stops being defensible even
+        if every demo rate still reproduces.
+        """
+        bank = providers["PRV001"]["cost_of_funds"]
+        nbfc = providers["PRV002"]["cost_of_funds"]
+        assert bank < nbfc, "a bank should fund itself more cheaply than an NBFC"
+        for pid, p in sorted(providers.items()):
+            assert p["target_margin"] >= 0.0, f"{pid} has a negative margin"
+            assert p["target_margin"] < 0.10, f"{pid} margin of {p['target_margin']} is implausible"
 
     def test_shading_increases(self, providers, invoice):
         """Higher uncertainty must raise the bid, all else equal."""
