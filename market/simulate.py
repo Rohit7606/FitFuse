@@ -18,7 +18,15 @@ from engine.assess import UnknownEntityError
 from engine.assess import assess as engine_assess
 from engine.assess import score_offers as engine_score_offers
 from market.agents import generate_offers as agents_generate_offers
-from market.clearing import run_clearing
+from market.agents import segment_key
+from market.clearing import match_id_for, run_clearing
+from market.learning import apply_outcome
+from market.settlement import (
+    SETTLEMENT_OUTCOMES,
+    IllegalTransitionError,
+    advance,
+    commit_liquidity,
+)
 
 
 def resolve_preferences(
@@ -68,8 +76,12 @@ def generate_offers(
     never score the same invoice two different ways.
     """
     invoice = _find(market.get("invoices", []), "invoice_id", invoice_id)
+    buyer = _find(market.get("buyers", []), "buyer_id", invoice["buyer_id"])
     providers = _with_liquidity_overrides(market.get("providers", []), scenario)
-    return agents_generate_offers(providers, invoice, assessment)
+    # The segment is what an agent has learned over; on a market straight off
+    # disk no provider has any adjustment and this changes nothing.
+    return agents_generate_offers(providers, invoice, assessment,
+                                  segment=segment_key(invoice, buyer))
 
 
 def scored_offers(
@@ -167,13 +179,93 @@ def settle(
         }
 
     Two full evaluations per request is correct. Do not optimise into one.
+
+    There is no stored match to look up — the API holds no state (AGENTS.md
+    §3.4) — so the match is reconstructed by clearing its invoice again. That
+    is only well-defined because match_id is a function of the invoice rather
+    than of clearing order; see clearing.match_id_for.
     """
-    raise NotImplementedError("Person B: implement settle() in Phase 3")
+    if outcome not in SETTLEMENT_OUTCOMES:
+        raise IllegalTransitionError(
+            "funded", outcome,
+            f"'{outcome}' is not a settlement outcome; expected one of "
+            f"{', '.join(SETTLEMENT_OUTCOMES)}.",
+        )
+
+    market = copy.deepcopy(market)
+    invoice_id = invoice_id_for_match(match_id, market)
+
+    cleared = clear([invoice_id], market, scenario)
+    if not cleared["matches"]:
+        reason = next((u["reason"] for u in cleared["unmatched"]
+                       if u["invoice_id"] == invoice_id), "no provider matched it")
+        raise IllegalTransitionError(
+            "cancelled", outcome,
+            f"{match_id} has no match to settle: {invoice_id} did not clear — "
+            f"{reason}",
+        )
+    match = cleared["matches"][0]
+
+    # matched is not funded. Settling walks the state machine properly rather
+    # than jumping states, so a match that cannot be funded fails here with a
+    # reason instead of silently settling money that never moved.
+    event = {"outcome": outcome, "days_late": days_late}
+    funded_match = advance(match, {"outcome": "funded"}, market)
+    funded_market = commit_liquidity(market, match)
+
+    settled_match = advance(funded_match, event, funded_market)
+    after_market, delta = apply_outcome(settled_match, event, funded_market)
+
+    # The same invoice set on both sides, so before and after line up row for
+    # row in the UI. The settled invoice leads; the rest are the ones the
+    # outcome repriced.
+    affected = [invoice_id] + [r["invoice_id"] for r in delta["repriced_invoices"]]
+
+    return {
+        "before": {
+            "match": funded_match,
+            "affected_invoices": _risk_profiles(affected, funded_market),
+        },
+        "after": {
+            "match": settled_match,
+            "affected_invoices": _risk_profiles(affected, after_market),
+        },
+        "delta": delta,
+    }
+
+
+def invoice_id_for_match(match_id: str, market: dict) -> str:
+    """Which invoice a match_id refers to, or raise so the API returns a 400."""
+    for invoice in sorted(market.get("invoices", []),
+                          key=lambda i: i["invoice_id"]):
+        try:
+            candidate = match_id_for(invoice["invoice_id"])
+        except ValueError:
+            continue
+        if candidate == match_id:
+            return invoice["invoice_id"]
+    raise UnknownEntityError(match_id)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _risk_profiles(invoice_ids: list[str], market: dict) -> list[dict]:
+    """RiskProfiles for a set of invoices, each tagged with its invoice_id.
+
+    SCHEMA.md §5.6 types affected_invoices as a bare RiskProfile list, but a
+    RiskProfile carries no id — three of them side by side would be unlabelled
+    on screen. schema.json allows the extra property, so it is added rather
+    than leaving the frontend to infer identity from array position.
+    """
+    profiles = []
+    for invoice_id in invoice_ids:
+        risk = dict(engine_assess(invoice_id, market)["risk"])
+        risk["invoice_id"] = invoice_id
+        profiles.append(risk)
+    return profiles
+
 
 def _find(records: list[dict], key: str, value: str) -> dict:
     for record in records:

@@ -10,19 +10,20 @@
           "offer_id": "OFR003"
         },
         {
-          "provider_id": "PRV001",
+          "provider_id": "PRV004",
           "amount_lakh": 3.0,
-          "offer_id": "OFR001"
+          "offer_id": "OFR004"
         }
       ],
       "syndicated": true,
       "total_advance_lakh": 9.0,
-      "blended_rate_annual": 0.0873,
-      "blended_cost_lakh": 0.1675,
-      "supplier_fit_score": 0.89,
+      "blended_rate_annual": 0.0887,
+      "blended_cost_lakh": 0.16784,
+      "supplier_fit_score": 0.898,
       "state": "funded",
       "days_to_settle": 0,
-      "reason_text": "Kestrel Credit Fund could fund only ₹6.00 lakh before hitting its auto-components sector limit, so Meridian Bank funded the remaining ₹3.00 lakh."
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its capacity limit; Nimbus Finserv funds ₹3.00 lakh.",
+      "state_reason_text": "Funded — ₹9.00 lakh disbursed to the supplier across 2 providers."
     },
     "affected_invoices": [
       {
@@ -31,20 +32,444 @@
         "pd_upper": 0.028,
         "uncertainty": 0.007,
         "risk_band": "prime",
-        "expected_loss_lakh": 0.063,
+        "expected_loss_lakh": 0.21,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.39
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.39
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV001"
+      },
+      {
+        "pd": 0.0181,
+        "pd_lower": 0.0141,
+        "pd_upper": 0.0221,
+        "uncertainty": 0.004,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.09,
         "reason_text": "Buyer rated AA with a 4-day average payment delay.",
         "reason_factors": [
           {
             "kind": "buyer_grade",
             "detail": "Buyer rated AA",
-            "weight": 0.6
+            "weight": 0.49
           },
           {
-            "kind": "payment_delay",
-            "detail": "4-day average payment delay",
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.26
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.25
+          }
+        ],
+        "invoice_id": "INV014"
+      },
+      {
+        "pd": 0.0308,
+        "pd_lower": 0.018,
+        "pd_upper": 0.0436,
+        "uncertainty": 0.0128,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.85,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.39
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
             "weight": 0.4
           }
-        ]
+        ],
+        "invoice_id": "INV031"
+      },
+      {
+        "pd": 0.0368,
+        "pd_lower": 0.0276,
+        "pd_upper": 0.046,
+        "uncertainty": 0.0092,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.44,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.39
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.39
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV033"
+      },
+      {
+        "pd": 0.0425,
+        "pd_lower": 0.0333,
+        "pd_upper": 0.0517,
+        "uncertainty": 0.0092,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.94,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.33
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.18
+          },
+          {
+            "kind": "tenor",
+            "detail": "90-day tenor",
+            "weight": 0.49
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.0
+          }
+        ],
+        "invoice_id": "INV038"
+      },
+      {
+        "pd": 0.0545,
+        "pd_lower": 0.0443,
+        "pd_upper": 0.0647,
+        "uncertainty": 0.0102,
+        "risk_band": "watch",
+        "expected_loss_lakh": 0.31,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.49
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.26
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.25
+          }
+        ],
+        "invoice_id": "INV049"
+      },
+      {
+        "pd": 0.0222,
+        "pd_lower": 0.019,
+        "pd_upper": 0.0254,
+        "uncertainty": 0.0032,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.75,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.39
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.4
+          }
+        ],
+        "invoice_id": "INV081"
+      },
+      {
+        "pd": 0.0288,
+        "pd_lower": 0.0134,
+        "pd_upper": 0.0442,
+        "uncertainty": 0.0154,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.08,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.39
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.39
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV090"
+      },
+      {
+        "pd": 0.026,
+        "pd_lower": 0.008,
+        "pd_upper": 0.044,
+        "uncertainty": 0.018,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.43,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.49
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.26
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.24
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "2 fields unverified",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV111"
+      },
+      {
+        "pd": 0.0279,
+        "pd_lower": 0.0113,
+        "pd_upper": 0.0445,
+        "uncertainty": 0.0166,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.21,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.44
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.23
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.33
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.0
+          }
+        ],
+        "invoice_id": "INV139"
+      },
+      {
+        "pd": 0.0342,
+        "pd_lower": 0.0202,
+        "pd_upper": 0.0482,
+        "uncertainty": 0.014,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.2,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.33
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.18
+          },
+          {
+            "kind": "tenor",
+            "detail": "90-day tenor",
+            "weight": 0.49
+          }
+        ],
+        "invoice_id": "INV151"
+      },
+      {
+        "pd": 0.0253,
+        "pd_lower": 0.0075,
+        "pd_upper": 0.0431,
+        "uncertainty": 0.0178,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.11,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.49
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.26
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.24
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "2 fields unverified",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV156"
+      },
+      {
+        "pd": 0.0318,
+        "pd_lower": 0.0178,
+        "pd_upper": 0.0458,
+        "uncertainty": 0.014,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.37,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.44
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.23
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.33
+          }
+        ],
+        "invoice_id": "INV158"
+      },
+      {
+        "pd": 0.0245,
+        "pd_lower": 0.0117,
+        "pd_upper": 0.0373,
+        "uncertainty": 0.0128,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.17,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.44
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.23
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.33
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.0
+          }
+        ],
+        "invoice_id": "INV159"
+      },
+      {
+        "pd": 0.0192,
+        "pd_lower": 0.0154,
+        "pd_upper": 0.023,
+        "uncertainty": 0.0038,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.07,
+        "reason_text": "Buyer rated AA with a 4-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.49
+          },
+          {
+            "kind": "payment_history",
+            "detail": "4-day average delay",
+            "weight": 0.26
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.25
+          }
+        ],
+        "invoice_id": "INV175"
       }
     ]
   },
@@ -59,83 +484,625 @@
           "offer_id": "OFR003"
         },
         {
-          "provider_id": "PRV001",
+          "provider_id": "PRV004",
           "amount_lakh": 3.0,
-          "offer_id": "OFR001"
+          "offer_id": "OFR004"
         }
       ],
       "syndicated": true,
       "total_advance_lakh": 9.0,
-      "blended_rate_annual": 0.0873,
-      "blended_cost_lakh": 0.1675,
-      "supplier_fit_score": 0.89,
+      "blended_rate_annual": 0.0887,
+      "blended_cost_lakh": 0.16784,
+      "supplier_fit_score": 0.898,
       "state": "late",
       "days_to_settle": 0,
-      "reason_text": "Kestrel Credit Fund could fund only ₹6.00 lakh before hitting its auto-components sector limit, so Meridian Bank funded the remaining ₹3.00 lakh."
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its capacity limit; Nimbus Finserv funds ₹3.00 lakh.",
+      "state_reason_text": "Past due by 5 days. Not written off — ₹9.00 lakh stays committed while it is still recoverable.",
+      "days_late": 5
     },
     "affected_invoices": [
       {
-        "pd": 0.0265,
-        "pd_lower": 0.019,
-        "pd_upper": 0.034,
-        "uncertainty": 0.0075,
+        "pd": 0.0236,
+        "pd_lower": 0.0166,
+        "pd_upper": 0.0306,
+        "uncertainty": 0.007,
         "risk_band": "standard",
-        "expected_loss_lakh": 0.0795,
-        "reason_text": "Buyer rated AA, but the average payment delay has risen to 5 days after a late settlement.",
+        "expected_loss_lakh": 0.24,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
         "reason_factors": [
           {
             "kind": "buyer_grade",
             "detail": "Buyer rated AA",
-            "weight": 0.55
+            "weight": 0.37
           },
           {
-            "kind": "payment_delay",
-            "detail": "5-day average payment delay",
-            "weight": 0.45
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.25
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.37
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
           }
-        ]
+        ],
+        "invoice_id": "INV001"
+      },
+      {
+        "pd": 0.0204,
+        "pd_lower": 0.0164,
+        "pd_upper": 0.0244,
+        "uncertainty": 0.004,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.1,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.46
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.31
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.23
+          }
+        ],
+        "invoice_id": "INV014"
+      },
+      {
+        "pd": 0.0346,
+        "pd_lower": 0.0218,
+        "pd_upper": 0.0474,
+        "uncertainty": 0.0128,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.96,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.38
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.25
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.37
+          }
+        ],
+        "invoice_id": "INV031"
+      },
+      {
+        "pd": 0.0413,
+        "pd_lower": 0.0321,
+        "pd_upper": 0.0505,
+        "uncertainty": 0.0092,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.5,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.37
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.25
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.37
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV033"
+      },
+      {
+        "pd": 0.0477,
+        "pd_lower": 0.0385,
+        "pd_upper": 0.0569,
+        "uncertainty": 0.0092,
+        "risk_band": "standard",
+        "expected_loss_lakh": 1.06,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.31
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "90-day tenor",
+            "weight": 0.47
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV038"
+      },
+      {
+        "pd": 0.061,
+        "pd_lower": 0.0508,
+        "pd_upper": 0.0712,
+        "uncertainty": 0.0102,
+        "risk_band": "watch",
+        "expected_loss_lakh": 0.35,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.46
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.31
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.23
+          }
+        ],
+        "invoice_id": "INV049"
+      },
+      {
+        "pd": 0.025,
+        "pd_lower": 0.0218,
+        "pd_upper": 0.0282,
+        "uncertainty": 0.0032,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.84,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.38
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.25
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.37
+          }
+        ],
+        "invoice_id": "INV081"
+      },
+      {
+        "pd": 0.0324,
+        "pd_lower": 0.017,
+        "pd_upper": 0.0478,
+        "uncertainty": 0.0154,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.09,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.37
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.25
+          },
+          {
+            "kind": "tenor",
+            "detail": "60-day tenor",
+            "weight": 0.37
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV090"
+      },
+      {
+        "pd": 0.0292,
+        "pd_lower": 0.0112,
+        "pd_upper": 0.0472,
+        "uncertainty": 0.018,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.48,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.46
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.3
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.23
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "2 fields unverified",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV111"
+      },
+      {
+        "pd": 0.0314,
+        "pd_lower": 0.0148,
+        "pd_upper": 0.048,
+        "uncertainty": 0.0166,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.23,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.41
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.27
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.31
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV139"
+      },
+      {
+        "pd": 0.0384,
+        "pd_lower": 0.0244,
+        "pd_upper": 0.0524,
+        "uncertainty": 0.014,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.23,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.32
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.21
+          },
+          {
+            "kind": "tenor",
+            "detail": "90-day tenor",
+            "weight": 0.47
+          }
+        ],
+        "invoice_id": "INV151"
+      },
+      {
+        "pd": 0.0284,
+        "pd_lower": 0.0106,
+        "pd_upper": 0.0462,
+        "uncertainty": 0.0178,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.13,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.46
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.3
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.23
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "2 fields unverified",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV156"
+      },
+      {
+        "pd": 0.0357,
+        "pd_lower": 0.0217,
+        "pd_upper": 0.0497,
+        "uncertainty": 0.014,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.41,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.41
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.28
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.31
+          }
+        ],
+        "invoice_id": "INV158"
+      },
+      {
+        "pd": 0.0276,
+        "pd_lower": 0.0148,
+        "pd_upper": 0.0404,
+        "uncertainty": 0.0128,
+        "risk_band": "standard",
+        "expected_loss_lakh": 0.19,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.41
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.27
+          },
+          {
+            "kind": "tenor",
+            "detail": "45-day tenor",
+            "weight": 0.31
+          },
+          {
+            "kind": "unverified_fields",
+            "detail": "Delivery confirmation unavailable",
+            "weight": 0.01
+          }
+        ],
+        "invoice_id": "INV159"
+      },
+      {
+        "pd": 0.0216,
+        "pd_lower": 0.0178,
+        "pd_upper": 0.0254,
+        "uncertainty": 0.0038,
+        "risk_band": "prime",
+        "expected_loss_lakh": 0.08,
+        "reason_text": "Buyer rated AA with a 5-day average payment delay.",
+        "reason_factors": [
+          {
+            "kind": "buyer_grade",
+            "detail": "Buyer rated AA",
+            "weight": 0.46
+          },
+          {
+            "kind": "payment_history",
+            "detail": "5-day average delay",
+            "weight": 0.31
+          },
+          {
+            "kind": "tenor",
+            "detail": "30-day tenor",
+            "weight": 0.23
+          }
+        ],
+        "invoice_id": "INV175"
       }
     ]
   },
   "delta": {
     "trigger": {
       "match_id": "MCH001",
+      "invoice_id": "INV001",
+      "buyer_id": "BUY001",
       "outcome": "late",
       "days_late": 5,
-      "buyer_id": "BUY001"
+      "band_before": "prime",
+      "band_after": "standard"
     },
     "buyer_updates": [
       {
         "buyer_id": "BUY001",
-        "field": "avg_payment_delay_days",
-        "before": 4,
-        "after": 5
+        "name": "Vireon Motors India Ltd",
+        "avg_payment_delay_before": 4,
+        "avg_payment_delay_after": 5,
+        "payment_delay_trend_before": 0.0,
+        "payment_delay_trend_after": 1.0,
+        "observed_delay_days": 5
       }
     ],
     "repriced_invoices": [
       {
         "invoice_id": "INV014",
-        "pd_before": 0.021,
-        "pd_after": 0.0265,
+        "pd_before": 0.0181,
+        "pd_after": 0.0204,
         "band_before": "prime",
+        "band_after": "prime"
+      },
+      {
+        "invoice_id": "INV031",
+        "pd_before": 0.0308,
+        "pd_after": 0.0346,
+        "band_before": "standard",
         "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV033",
+        "pd_before": 0.0368,
+        "pd_after": 0.0413,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV038",
+        "pd_before": 0.0425,
+        "pd_after": 0.0477,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV049",
+        "pd_before": 0.0545,
+        "pd_after": 0.061,
+        "band_before": "watch",
+        "band_after": "watch"
+      },
+      {
+        "invoice_id": "INV081",
+        "pd_before": 0.0222,
+        "pd_after": 0.025,
+        "band_before": "prime",
+        "band_after": "prime"
+      },
+      {
+        "invoice_id": "INV090",
+        "pd_before": 0.0288,
+        "pd_after": 0.0324,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV111",
+        "pd_before": 0.026,
+        "pd_after": 0.0292,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV139",
+        "pd_before": 0.0279,
+        "pd_after": 0.0314,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV151",
+        "pd_before": 0.0342,
+        "pd_after": 0.0384,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV156",
+        "pd_before": 0.0253,
+        "pd_after": 0.0284,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV158",
+        "pd_before": 0.0318,
+        "pd_after": 0.0357,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV159",
+        "pd_before": 0.0245,
+        "pd_after": 0.0276,
+        "band_before": "standard",
+        "band_after": "standard"
+      },
+      {
+        "invoice_id": "INV175",
+        "pd_before": 0.0192,
+        "pd_after": 0.0216,
+        "band_before": "prime",
+        "band_after": "prime"
       }
     ],
     "liquidity_updates": [
       {
         "provider_id": "PRV003",
-        "returned_lakh": 6.0,
+        "name": "Kestrel Credit Fund",
         "available_before_lakh": 494.0,
-        "available_after_lakh": 500.0
+        "available_after_lakh": 494.0,
+        "returned_lakh": 0.0,
+        "reason": "Capital stays committed while the invoice is late but recoverable."
+      },
+      {
+        "provider_id": "PRV004",
+        "name": "Nimbus Finserv",
+        "available_before_lakh": 797.0,
+        "available_after_lakh": 797.0,
+        "returned_lakh": 0.0,
+        "reason": "Capital stays committed while the invoice is late but recoverable."
       }
     ],
     "provider_bid_adjustments": [
       {
         "provider_id": "PRV003",
+        "name": "Kestrel Credit Fund",
         "segment": "auto_components/AA/60d",
-        "rate_adjustment": 0.0015
+        "rate_adjustment": 0.000468,
+        "reason": "Observed a 5-day delay on Vireon Motors India Ltd."
+      },
+      {
+        "provider_id": "PRV004",
+        "name": "Nimbus Finserv",
+        "segment": "auto_components/AA/60d",
+        "rate_adjustment": 0.000468,
+        "reason": "Observed a 5-day delay on Vireon Motors India Ltd."
       }
     ],
-    "summary_text": "Vireon Motors paid 5 days late. One other open invoice on that buyer was repriced from prime to standard, and Kestrel Credit Fund raised its next bid on this segment by 15 basis points."
+    "summary_text": "Vireon Motors India Ltd paid 5 days late. INV001 moved from prime to standard. 14 other open invoices on that buyer were repriced. Kestrel Credit Fund and 1 other provider raised their next bids on auto_components/AA/60d by 5 basis points."
   }
 }

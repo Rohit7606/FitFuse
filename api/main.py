@@ -21,22 +21,17 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from api import stubs
+from api.errors import error_response as _error
+from api.errors import to_response
 from api.models import AssessRequest, ClearRequest, OffersRequest, SettleRequest
 from engine.assess import (
-    InvalidWeightsError,
     LiquidityOverride,
     PreferenceOverride,
     Scenario,
-    UnknownEntityError,
 )
 from engine.assess import assess as engine_assess
 from market import simulate
-
-# Settlement and learning are Phase 3; /api/settle stays on the stub until
-# market/settlement.py exists. Everything else is wired to the real engine.
 
 WEIGHT_TOLERANCE = 0.001  # SCHEMA.md §6: weights sum to 1.0 ± 0.001
 
@@ -77,18 +72,14 @@ def load_market() -> dict:
 # Request validation — a bad ID is a 400, never a 500 (SCHEMA.md §5.7)
 # ---------------------------------------------------------------------------
 
-def _error(status: int, error: str, detail: str, **extra) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"error": error, "detail": detail, **extra})
-
-
-def _find_invoice(invoice_id: str) -> JSONResponse | None:
+def _find_invoice(invoice_id: str):
     """Return an error response if the invoice is unknown, else None."""
     if any(i["invoice_id"] == invoice_id for i in load_market()["invoices"]):
         return None
     return _error(400, "unknown_entity", f"{invoice_id} not in market", entity_id=invoice_id)
 
 
-def _check_weights(scenario) -> JSONResponse | None:
+def _check_weights(scenario):
     """Preference weights must sum to 1.0; the sliders are the usual offender."""
     for override in scenario.preference_overrides:
         total = sum(override.weights.values())
@@ -129,17 +120,13 @@ def to_scenario(scenario) -> Scenario:
 def _engine_call(fn, *args, **kwargs):
     """Run an engine/market call, mapping its exceptions to the right status.
 
-    A typo'd ID or bad weights is a bad request, never a 500 (SCHEMA.md §5.7).
+    The mapping itself lives in api/errors.py so there is one place that
+    decides what is a 400 and what is a 500 (SCHEMA.md §5.7).
     """
     try:
         return fn(*args, **kwargs)
-    except UnknownEntityError as exc:
-        return _error(400, "unknown_entity", str(exc),
-                      entity_id=getattr(exc, "entity_id", None))
-    except InvalidWeightsError as exc:
-        return _error(400, "invalid_weights", str(exc))
-    except Exception as exc:  # noqa: BLE001 — last resort, still a clean body
-        return _error(500, "engine_failure", f"{type(exc).__name__}: {exc}")
+    except Exception as exc:  # noqa: BLE001 — every path ends in a clean body
+        return to_response(exc)
 
 
 # ---------------------------------------------------------------------------
@@ -162,9 +149,8 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Endpoints. /api/assess, /api/offers and /api/clear call the real engine and
-# market. /api/settle is the last one still on a stub — market/settlement.py
-# and market/learning.py are Phase 3.
+# Endpoints. All five call the real engine and market — there are no stubs
+# left. Each body stays under fifteen lines; logic lives in market/.
 # ---------------------------------------------------------------------------
 
 @app.get("/api/market")
@@ -234,15 +220,13 @@ def clear_market(req: ClearRequest):
 
 @app.post("/api/settle")
 def settle_match(req: SettleRequest):
-    """Advance a match through settlement and return before/after/delta."""
-    if req.outcome not in ("settled", "late", "defaulted"):
-        return _error(
-            400,
-            "illegal_transition",
-            f"Cannot settle to state '{req.outcome}'; "
-            "expected one of settled, late, defaulted",
-        )
+    """Advance a match through settlement and return before/after/delta.
+
+    Which outcomes are legal is the state machine's call, not this endpoint's —
+    market/settlement.py rejects the rest and _engine_call maps that to a 400.
+    """
     return (
         _check_weights(req.scenario)
-        or stubs.stub_settle(req.match_id, req.outcome, req.days_late)
+        or _engine_call(simulate.settle, req.match_id, req.outcome,
+                        req.days_late, load_market(), to_scenario(req.scenario))
     )

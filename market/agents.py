@@ -23,7 +23,21 @@ from engine.config import (
 )
 
 
-def _bid_rate(provider: dict, risk: dict, expected_competitors: int) -> float:
+def segment_key(invoice: dict, buyer: dict) -> str:
+    """The bucket an agent learns over: sector, buyer grade, tenor.
+
+    Coarse on purpose. A provider that learned per buyer would need years of
+    outcomes before it had an opinion; per sector alone it would never notice
+    that AA and BB behave differently. This is the grain PERSON_B.md §3.4
+    names, and it is the grain the LearningDelta reports.
+    """
+    return (f"{buyer.get('sector', 'unknown')}/"
+            f"{buyer.get('credit_grade', 'unknown')}/"
+            f"{invoice.get('tenor_days', 0)}d")
+
+
+def bid_rate(provider: dict, risk: dict, expected_competitors: int,
+              segment_adjustment: float = 0.0) -> float:
     """Price the deal — PERSON_B.md §3.1.
 
     The shade is the winner's-curse premium: in an auction the winner is
@@ -41,8 +55,12 @@ def _bid_rate(provider: dict, risk: dict, expected_competitors: int) -> float:
         + provider.get("target_margin", 0.0)
     )
     shade = SHADE_K * risk["uncertainty"] * math.log(1 + expected_competitors)
+    # What this provider has learned about this segment from past outcomes.
+    # Zero on a market that has not settled anything, which is every market
+    # loaded from disk — learning is carried in the market dict, not in a
+    # module-level accumulator, because the API is stateless (AGENTS.md §3.4).
     # Bidding below your own funding cost is a bug, not a strategy.
-    return max(required + shade, provider["cost_of_funds"])
+    return max(required + shade + segment_adjustment, provider["cost_of_funds"])
 
 
 def _non_price_terms(provider: dict) -> tuple[float, int, float, str]:
@@ -78,6 +96,7 @@ def generate_offer(
     assessment: dict,
     eligibility: dict,
     expected_competitors: int = DEFAULT_EXPECTED_COMPETITORS,
+    segment: str | None = None,
 ) -> dict | None:
     """Generate an Offer from this provider, or None if ineligible.
 
@@ -92,7 +111,9 @@ def generate_offer(
     if not eligibility.get("eligible", False):
         return None
 
-    rate_annual = _bid_rate(provider, assessment["risk"], expected_competitors)
+    learned = provider.get("segment_adjustments", {}).get(segment, 0.0)
+    rate_annual = bid_rate(provider, assessment["risk"], expected_competitors,
+                            segment_adjustment=learned)
     advance_rate, days_to_settle, fee_percent, structure = _non_price_terms(provider)
 
     amount_lakh = invoice["amount_lakh"]
@@ -126,6 +147,7 @@ def generate_offers(
     providers: list[dict],
     invoice: dict,
     assessment: dict,
+    segment: str | None = None,
 ) -> list[dict]:
     """Collect bids from every eligible provider, sorted by offer_id.
 
@@ -146,6 +168,7 @@ def generate_offers(
             assessment,
             entry,
             expected_competitors=max(eligible_count - 1, 0),
+            segment=segment,
         )
         if offer is not None:
             offers.append(offer)
