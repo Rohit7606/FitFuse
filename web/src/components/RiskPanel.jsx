@@ -66,14 +66,20 @@ export default function RiskPanel({ assessment }) {
       <div>
         <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-sm)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Key Risk Factors</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-          {reason_factors?.map((factor, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', padding: 'var(--space-xs) 0', borderBottom: i < reason_factors.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>{factor.factor}</span>
-              <span style={{ fontWeight: 600, color: factor.weight > 0 ? 'var(--accent-danger)' : 'var(--accent-success)' }}>
-                {factor.weight > 0 ? '+' : ''}{(factor.weight * 100).toFixed(1)}%
-              </span>
+          {reason_factors && reason_factors.length > 0 ? (
+            reason_factors.map((factor, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', padding: 'var(--space-xs) 0', borderBottom: i < reason_factors.length - 1 ? '1px solid var(--border-light)' : 'none' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>{factor.factor}</span>
+                <span style={{ fontWeight: 600, color: factor.weight > 0 ? 'var(--accent-danger)' : 'var(--accent-success)' }}>
+                  {factor.weight > 0 ? '+' : ''}{(factor.weight * 100).toFixed(1)}%
+                </span>
+              </div>
+            ))
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
+              No specific risk factors identified.
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

@@ -2,11 +2,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatLakh, formatPercent } from '../utils/format.js';
 
 export default function ProviderPanel({ providers = [], eligibility = [] }) {
-  if (!providers.length || !eligibility.length) return null;
+  if (!providers || !providers.length) {
+    return (
+      <div className="card" style={{ padding: 'var(--space-2xl)', textAlign: 'center', color: 'var(--text-muted)' }}>
+        No providers available in the market.
+      </div>
+    );
+  }
 
+  const elList = eligibility || [];
   // Merge the provider data with their eligibility status
   const providerState = providers.map(p => {
-    const el = eligibility.find(e => e.provider_id === p.provider_id);
+    const el = elList.find(e => e.provider_id === p.provider_id);
     return {
       ...p,
       eligible: el?.eligible ?? false,
