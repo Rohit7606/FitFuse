@@ -405,32 +405,38 @@ class TestSyndication:
         assert "lakh" in result["unmatched"][0]["reason"]
 
 
-class TestClearing:
-    """Clearing engine tests."""
+# Clearing coverage lives in TestSyndication above, which exercises the demo
+# match, blended rate, exact allocation sum, capacity limits, termination and
+# stability, utilisation, determinism and the shortfall path. The stubs that
+# used to sit here duplicated that under the PERSON_B.md §7 names and made the
+# suite look unimplemented — a reviewer reading only the skip list concluded
+# exactly that. Only genuinely pending work is listed below.
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_capacity_respected(self):
-        pass
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_clearing_terminates(self):
-        pass
+class TestPurity:
+    """No side effects — clear() must not touch the caller's data."""
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_clearing_stable(self):
-        pass
+    def test_no_market_mutation(self, providers, invoice, demo_offers):
+        """The API is stateless; a mutated input would leak between requests."""
+        import copy
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_syndication_sums(self):
-        pass
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        provider_list = [providers[p] for p in demo]
+        offers = _scored(list(demo_offers.values()), DEMO_FIT)
+        eligibility = {"INV001": {
+            p: {"provider_id": p, "eligible": True,
+                "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+            for p in demo}}
+        risk = {"INV001": {"pd": 0.0210, "pd_upper": 0.0280}}
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_demo_match(self):
-        pass
+        before = copy.deepcopy((provider_list, offers, eligibility, risk, invoice))
+        run_clearing([invoice], {"INV001": offers}, provider_list, eligibility, risk)
+        assert (provider_list, offers, eligibility, risk, invoice) == before
 
 
 class TestSettlement:
-    """Settlement state machine tests."""
+    """Settlement state machine — Phase 3, market/settlement.py not yet written."""
 
     @pytest.mark.skip(reason="Person B: implement after settlement")
     def test_illegal_transition(self):
@@ -438,20 +444,8 @@ class TestSettlement:
 
 
 class TestLearning:
-    """Learning loop tests."""
+    """Learning loop — Phase 3, market/learning.py not yet written."""
 
     @pytest.mark.skip(reason="Person B: implement after learning")
     def test_learning_delta(self):
-        pass
-
-
-class TestPurity:
-    """No side effects."""
-
-    @pytest.mark.skip(reason="Person B: implement after clear/settle")
-    def test_no_market_mutation(self):
-        pass
-
-    @pytest.mark.skip(reason="Person B: implement after clear")
-    def test_determinism(self):
         pass
