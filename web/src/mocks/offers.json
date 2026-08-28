@@ -8,13 +8,15 @@
       "duplicate_detected": false,
       "duplicate_of": null,
       "field_confidence": {
+        "delivery_confirmed": "unknown",
         "amount_lakh": "verified",
-        "irn": "verified",
+        "tenor_days": "verified",
         "buyer_gstin": "verified",
-        "delivery_confirmed": "unknown"
+        "supplier_prior_defaults": "verified"
       },
       "unknown_field_count": 1,
-      "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmation is unavailable."
+      "inferred_field_count": 0,
+      "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmed is unavailable."
     },
     "risk": {
       "pd": 0.021,
@@ -22,28 +24,28 @@
       "pd_upper": 0.028,
       "uncertainty": 0.007,
       "risk_band": "prime",
-      "expected_loss_lakh": 0.126,
-      "reason_text": "Buyer rated AA with a 4-day average payment delay. The range is widened because delivery confirmation is unavailable.",
+      "expected_loss_lakh": 0.21,
+      "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
       "reason_factors": [
         {
           "kind": "buyer_grade",
           "detail": "Buyer rated AA",
-          "weight": 0.45
+          "weight": 0.39
         },
         {
-          "kind": "payment_delay",
-          "detail": "4-day average payment delay",
-          "weight": 0.25
+          "kind": "payment_history",
+          "detail": "4-day average delay",
+          "weight": 0.21
         },
         {
           "kind": "tenor",
           "detail": "60-day tenor",
-          "weight": 0.18
+          "weight": 0.39
         },
         {
-          "kind": "unverified",
+          "kind": "unverified_fields",
           "detail": "Delivery confirmation unavailable",
-          "weight": 0.12
+          "weight": 0.01
         }
       ]
     },
@@ -67,7 +69,7 @@
         "eligible": true,
         "max_fundable_lakh": 6.0,
         "exclusion_reason": null,
-        "binding_constraint": "sector_limit"
+        "binding_constraint": null
       },
       {
         "provider_id": "PRV004",
@@ -87,14 +89,13 @@
         "provider_id": "PRV006",
         "eligible": false,
         "max_fundable_lakh": 0.0,
-        "exclusion_reason": "Sentinel Asset Managers accepts a default probability up to 1.50%; this invoice's upper estimate is 2.80%.",
+        "exclusion_reason": "Invoice risk (PD upper bound of 2.80%) exceeds Sentinel Asset Managers' risk appetite of 1.50%.",
         "binding_constraint": "risk_appetite"
       }
     ],
     "meta": {
-      "stub": true,
-      "source": "api/stubs.py",
-      "data_source": "synthetic"
+      "assessed": true,
+      "schema_version": "1.1"
     }
   },
   "offers": [
@@ -111,20 +112,20 @@
       "repayment_structure": "bullet",
       "amount_committed_lakh": 8.0,
       "advance_amount_lakh": 8.0,
-      "total_cost_lakh": 0.16836,
       "cash_now_lakh": 8.0,
-      "fit_score": 0.71,
-      "component_scores": {
-        "cost": 0.0,
-        "advance": 0.0,
-        "speed": 0.0,
-        "tenor": 0.0,
-        "fees": 0.0,
-        "structure": 0.0
-      },
+      "total_cost_lakh": 0.16836,
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Costs ₹1,14,000 less than the cheapest rate but advances only 80%, settling in 3 days."
+      "component_scores": {
+        "cost": 0.2107,
+        "advance": 0.5,
+        "speed": 0.0,
+        "tenor": 1.0,
+        "fees": 0.6,
+        "structure": 1.0
+      },
+      "fit_score": 0.3263,
+      "reason_text": "Costs ₹600 less than the lowest-rate offer but delivers ₹1.00 lakh more cash, settles 1 days slower."
     },
     {
       "offer_id": "OFR002",
@@ -139,20 +140,20 @@
       "repayment_structure": "bullet",
       "amount_committed_lakh": 7.0,
       "advance_amount_lakh": 7.0,
-      "total_cost_lakh": 0.17436,
       "cash_now_lakh": 7.0,
-      "fit_score": 0.64,
+      "total_cost_lakh": 0.17436,
+      "feasible": true,
+      "rejection_reason": null,
       "component_scores": {
         "cost": 0.0,
         "advance": 0.0,
-        "speed": 0.0,
-        "tenor": 0.0,
+        "speed": 0.3333,
+        "tenor": 1.0,
         "fees": 0.0,
-        "structure": 0.0
+        "structure": 1.0
       },
-      "feasible": true,
-      "rejection_reason": null,
-      "reason_text": "Lowest headline rate at 8.20%, but advances only 70% and charges 0.80% in fees — ₹7,15 more in rupees than Kestrel."
+      "fit_score": 0.2611,
+      "reason_text": "Lowest headline rate of 8.2%, but advances only 70% (costs ₹2,847 more than PRV004)."
     },
     {
       "offer_id": "OFR003",
@@ -165,22 +166,22 @@
       "fee_flat_lakh": 0.0,
       "days_to_settle": 0,
       "repayment_structure": "bullet",
-      "amount_committed_lakh": 9.0,
+      "amount_committed_lakh": 6.0,
       "advance_amount_lakh": 9.0,
-      "total_cost_lakh": 0.16723,
       "cash_now_lakh": 9.0,
-      "fit_score": 0.89,
-      "component_scores": {
-        "cost": 0.0,
-        "advance": 0.0,
-        "speed": 0.0,
-        "tenor": 0.0,
-        "fees": 0.0,
-        "structure": 0.0
-      },
+      "total_cost_lakh": 0.16723,
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Costs ₹715 less than the lowest-rate offer and delivers ₹2.00 lakh more cash, same day."
+      "component_scores": {
+        "cost": 0.2504,
+        "advance": 1.0,
+        "speed": 1.0,
+        "tenor": 1.0,
+        "fees": 0.8,
+        "structure": 1.0
+      },
+      "fit_score": 0.898,
+      "reason_text": "Costs ₹713 less than the lowest-rate offer but delivers ₹2.00 lakh more cash, same day."
     },
     {
       "offer_id": "OFR004",
@@ -195,26 +196,26 @@
       "repayment_structure": "instalment",
       "amount_committed_lakh": 7.5,
       "advance_amount_lakh": 7.5,
-      "total_cost_lakh": 0.14589,
       "cash_now_lakh": 7.5,
-      "fit_score": 0.68,
-      "component_scores": {
-        "cost": 0.0,
-        "advance": 0.0,
-        "speed": 0.0,
-        "tenor": 0.0,
-        "fees": 0.0,
-        "structure": 0.0
-      },
+      "total_cost_lakh": 0.14589,
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Cheapest in rupees at ₹14,589, but advances only 75% and repays in instalments rather than a single payment."
+      "component_scores": {
+        "cost": 1.0,
+        "advance": 0.25,
+        "speed": 0.6667,
+        "tenor": 1.0,
+        "fees": 1.0,
+        "structure": 0.6
+      },
+      "fit_score": 0.6222,
+      "reason_text": "Costs ₹2,847 less than the lowest-rate offer but delivers ₹0.50 lakh more cash, settles 1 days sooner."
     }
   ],
   "ranking": [
     "OFR003",
-    "OFR001",
     "OFR004",
+    "OFR001",
     "OFR002"
   ],
   "naive_ranking": [

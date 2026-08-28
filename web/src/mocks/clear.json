@@ -10,45 +10,64 @@
           "offer_id": "OFR003"
         },
         {
-          "provider_id": "PRV001",
+          "provider_id": "PRV004",
           "amount_lakh": 3.0,
-          "offer_id": "OFR001"
+          "offer_id": "OFR004"
         }
       ],
       "syndicated": true,
       "total_advance_lakh": 9.0,
-      "blended_rate_annual": 0.0873,
-      "blended_cost_lakh": 0.1675,
-      "supplier_fit_score": 0.89,
+      "blended_rate_annual": 0.0887,
+      "blended_cost_lakh": 0.16784,
+      "supplier_fit_score": 0.898,
       "state": "matched",
       "days_to_settle": 0,
-      "reason_text": "Kestrel Credit Fund could fund only ₹6.00 lakh before hitting its auto-components sector limit, so Meridian Bank funded the remaining ₹3.00 lakh."
+      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its capacity limit; Nimbus Finserv funds ₹3.00 lakh."
     }
   ],
-  "unmatched": [
-    {
-      "invoice_id": "INV014",
-      "reason": "Stub response: only the first invoice is matched in Phase 0."
-    }
-  ],
+  "unmatched": [],
   "provider_utilisation": [
     {
       "provider_id": "PRV001",
-      "committed_lakh": 3.0,
-      "remaining_lakh": 1997.0,
-      "utilisation": 0.0015
+      "committed_lakh": 0.0,
+      "remaining_lakh": 2000.0,
+      "utilisation": 0.0
+    },
+    {
+      "provider_id": "PRV002",
+      "committed_lakh": 0.0,
+      "remaining_lakh": 1000.0,
+      "utilisation": 0.0
     },
     {
       "provider_id": "PRV003",
       "committed_lakh": 6.0,
       "remaining_lakh": 494.0,
       "utilisation": 0.012
+    },
+    {
+      "provider_id": "PRV004",
+      "committed_lakh": 3.0,
+      "remaining_lakh": 797.0,
+      "utilisation": 0.0037
+    },
+    {
+      "provider_id": "PRV005",
+      "committed_lakh": 0.0,
+      "remaining_lakh": 300.0,
+      "utilisation": 0.0
+    },
+    {
+      "provider_id": "PRV006",
+      "committed_lakh": 0.0,
+      "remaining_lakh": 1500.0,
+      "utilisation": 0.0
     }
   ],
   "summary": {
     "matched_count": 1,
     "syndicated_count": 1,
-    "iterations": 3,
+    "iterations": 1,
     "stable": true
   }
 }

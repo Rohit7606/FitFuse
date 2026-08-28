@@ -6,13 +6,15 @@
     "duplicate_detected": false,
     "duplicate_of": null,
     "field_confidence": {
+      "delivery_confirmed": "unknown",
       "amount_lakh": "verified",
-      "irn": "verified",
+      "tenor_days": "verified",
       "buyer_gstin": "verified",
-      "delivery_confirmed": "unknown"
+      "supplier_prior_defaults": "verified"
     },
     "unknown_field_count": 1,
-    "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmation is unavailable."
+    "inferred_field_count": 0,
+    "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmed is unavailable."
   },
   "risk": {
     "pd": 0.021,
@@ -20,28 +22,28 @@
     "pd_upper": 0.028,
     "uncertainty": 0.007,
     "risk_band": "prime",
-    "expected_loss_lakh": 0.126,
-    "reason_text": "Buyer rated AA with a 4-day average payment delay. The range is widened because delivery confirmation is unavailable.",
+    "expected_loss_lakh": 0.21,
+    "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
     "reason_factors": [
       {
         "kind": "buyer_grade",
         "detail": "Buyer rated AA",
-        "weight": 0.45
+        "weight": 0.39
       },
       {
-        "kind": "payment_delay",
-        "detail": "4-day average payment delay",
-        "weight": 0.25
+        "kind": "payment_history",
+        "detail": "4-day average delay",
+        "weight": 0.21
       },
       {
         "kind": "tenor",
         "detail": "60-day tenor",
-        "weight": 0.18
+        "weight": 0.39
       },
       {
-        "kind": "unverified",
+        "kind": "unverified_fields",
         "detail": "Delivery confirmation unavailable",
-        "weight": 0.12
+        "weight": 0.01
       }
     ]
   },
@@ -65,7 +67,7 @@
       "eligible": true,
       "max_fundable_lakh": 6.0,
       "exclusion_reason": null,
-      "binding_constraint": "sector_limit"
+      "binding_constraint": null
     },
     {
       "provider_id": "PRV004",
@@ -85,13 +87,12 @@
       "provider_id": "PRV006",
       "eligible": false,
       "max_fundable_lakh": 0.0,
-      "exclusion_reason": "Sentinel Asset Managers accepts a default probability up to 1.50%; this invoice's upper estimate is 2.80%.",
+      "exclusion_reason": "Invoice risk (PD upper bound of 2.80%) exceeds Sentinel Asset Managers' risk appetite of 1.50%.",
       "binding_constraint": "risk_appetite"
     }
   ],
   "meta": {
-    "stub": true,
-    "source": "api/stubs.py",
-    "data_source": "synthetic"
+    "assessed": true,
+    "schema_version": "1.1"
   }
 }
