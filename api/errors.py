@@ -15,7 +15,6 @@ from __future__ import annotations
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-
 # These exception handlers will be registered on the FastAPI app
 # once the engine and market modules are implemented.
 
