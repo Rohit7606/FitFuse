@@ -20,9 +20,7 @@ Test list from PERSON_A.md §5:
 Owner: Person A
 """
 
-import json
 import pytest
-
 
 # Placeholder tests — Person A implements these as the engine is built.
 
@@ -37,9 +35,22 @@ class TestDeterminism:
 class TestSchemaValid:
     """mockgen output validates against MarketInput; assess output against Assessment."""
 
-    @pytest.mark.skip(reason="Person A: implement after mockgen + assess")
     def test_mockgen_validates(self):
-        pass
+        import os
+
+        import jsonschema
+
+        from engine.mockgen import generate_market, validate_market
+        market = generate_market(42)
+        schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "schema.json")
+        # Validate should not raise any exceptions
+        validate_market(market, schema_path)
+
+        # The validator must actually reject bad input. schema.json is a
+        # definitions-only document, so validating against its root would pass
+        # anything at all — this guards against that regression.
+        with pytest.raises(jsonschema.ValidationError):
+            validate_market({"suppliers": "not-an-array"}, schema_path)
 
     @pytest.mark.skip(reason="Person A: implement after assess")
     def test_assess_validates(self):
