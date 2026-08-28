@@ -37,9 +37,13 @@ class TestDeterminism:
 class TestSchemaValid:
     """mockgen output validates against MarketInput; assess output against Assessment."""
 
-    @pytest.mark.skip(reason="Person A: implement after mockgen + assess")
     def test_mockgen_validates(self):
-        pass
+        import os
+        from engine.mockgen import generate_market, validate_market
+        market = generate_market(42)
+        schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "schema.json")
+        # Validate should not raise any exceptions
+        validate_market(market, schema_path)
 
     @pytest.mark.skip(reason="Person A: implement after assess")
     def test_assess_validates(self):
