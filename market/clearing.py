@@ -18,6 +18,27 @@ from __future__ import annotations
 
 from engine.config import EPSILON, MAX_ROUNDS
 
+MATCH_ID_LIMIT = 999  # schema.json pins match_id to ^MCH\d{3}$
+
+
+def match_id_for(invoice_id: str) -> str:
+    """MCH001 for INV001 — a match's id follows its invoice, not clearing order.
+
+    /api/settle addresses a match by id and the API holds no state, so the id
+    has to be recoverable from the market alone. Numbering by position in the
+    cleared batch made MCH001 mean "whatever sorted first in *this* request",
+    which is a different match depending on what the caller asked for — and
+    therefore not an address at all.
+    """
+    digits = "".join(ch for ch in invoice_id if ch.isdigit())
+    n = int(digits) if digits else 0
+    if not 1 <= n <= MATCH_ID_LIMIT:
+        raise ValueError(
+            f"Cannot derive a match_id from {invoice_id!r}: SCHEMA.md §4.6 pins "
+            f"match ids to MCH001–MCH{MATCH_ID_LIMIT}."
+        )
+    return f"MCH{n:03d}"
+
 
 def _risk_adjusted_return(offer: dict, risk: dict) -> float:
     """How much a provider wants this deal, per rupee committed.
@@ -211,7 +232,7 @@ def run_clearing(
     unmatched = []
     committed: dict[str, float] = {pid: 0.0 for pid in provider_by_id}
 
-    for n, invoice in enumerate(sorted(invoices, key=lambda i: i["invoice_id"]), 1):
+    for invoice in sorted(invoices, key=lambda i: i["invoice_id"]):
         invoice_id = invoice["invoice_id"]
         ranked = preferences[invoice_id]
         offers_by_id = {o["offer_id"]: o for o in ranked}
@@ -257,7 +278,7 @@ def run_clearing(
                       f"full ₹{total_advance:.2f} lakh advance.")
 
         matches.append({
-            "match_id": f"MCH{n:03d}",
+            "match_id": match_id_for(invoice_id),
             "invoice_id": invoice_id,
             "allocations": allocations,
             "syndicated": syndicated,

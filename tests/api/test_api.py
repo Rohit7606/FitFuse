@@ -203,3 +203,70 @@ class TestProductThesis:
         assert body["summary"]["fit_beats_rate"] is True
         assert body["ranking"][0] == "OFR003", "the fit winner is Kestrel"
         assert body["naive_ranking"][0] == "OFR002", "the lowest rate is Arcline"
+
+
+class TestSettleEndpoint:
+    """Demo step 8 — /api/settle is the beat the presentation closes on."""
+
+    def _settle(self, **kwargs):
+        payload = {"match_id": "MCH001", "outcome": "late", "days_late": 5,
+                   **BASELINE, **kwargs}
+        return client.post("/api/settle", json=payload)
+
+    def test_before_is_funded_and_after_is_the_outcome(self):
+        """matched is not funded — the before/after pair must show real states."""
+        body = self._settle().json()
+        assert body["before"]["match"]["state"] == "funded"
+        assert body["after"]["match"]["state"] == "late"
+        assert body["after"]["match"]["days_late"] == 5
+
+    def test_affected_invoices_are_identifiable(self):
+        """A bare RiskProfile carries no id; three side by side would be unlabelled."""
+        body = self._settle().json()
+        before = body["before"]["affected_invoices"]
+        after = body["after"]["affected_invoices"]
+        assert [r["invoice_id"] for r in before] == [r["invoice_id"] for r in after]
+        assert before[0]["invoice_id"] == "INV001"
+        for profile in before + after:
+            validates(profile, "RiskProfile")
+
+    def test_delta_carries_the_demo_payload(self):
+        """The two arrays the judge actually reads (SCHEMA.md §4.7)."""
+        delta = self._settle().json()["delta"]
+        assert delta["trigger"]["match_id"] == "MCH001"
+        assert delta["buyer_updates"][0]["avg_payment_delay_after"] == 5
+        assert delta["repriced_invoices"]
+        assert delta["provider_bid_adjustments"]
+        assert delta["summary_text"].startswith("Vireon Motors")
+
+    def test_unknown_match_400(self):
+        r = self._settle(match_id="MCH999")
+        assert r.status_code == 400
+        assert r.json()["error"] == "unknown_entity"
+        assert "MCH999" in r.json()["detail"]
+
+    def test_unfundable_match_400(self):
+        """Drain every provider and the match cannot be reconstructed — a 400.
+
+        Not a 500 and not a fabricated settlement of money that never moved.
+        """
+        drained = {"scenario": {"liquidity_overrides": [
+            {"provider_id": f"PRV00{n}", "available_liquidity_lakh": 0.0}
+            for n in range(1, 7)]}}
+        r = self._settle(**drained)
+        assert r.status_code == 400
+        assert r.json()["error"] == "illegal_transition"
+        assert "INV001 did not clear" in r.json()["detail"]
+
+    def test_deterministic(self):
+        assert self._settle().json() == self._settle().json()
+
+    def test_outcomes_differ_from_each_other(self):
+        """settled, late and defaulted must be three outcomes, not one template."""
+        summaries = {
+            outcome: self._settle(outcome=outcome, days_late=days).json()
+                     ["delta"]["summary_text"]
+            for outcome, days in (("settled", 0), ("late", 5), ("defaulted", 0))
+        }
+        assert len(set(summaries.values())) == 3
+
