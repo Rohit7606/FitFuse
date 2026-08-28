@@ -19,6 +19,7 @@
   --bg-secondary: #111827;
   --bg-card: #1a1f2e;
   --bg-card-hover: #222840;
+  --bg-elevated: #2a3044;
   --bg-surface: rgba(255, 255, 255, 0.04);
   --bg-glass: rgba(26, 31, 46, 0.85);
 
@@ -58,6 +59,7 @@
   --space-2xl: 48px;
 
   /* Border */
+  --border-light: rgba(255, 255, 255, 0.15);
   --border-subtle: 1px solid rgba(255, 255, 255, 0.08);
   --border-card: 1px solid rgba(255, 255, 255, 0.10);
   --radius-sm: 6px;
@@ -244,6 +246,31 @@ body {
   width: 100%;
 }
 
+/* --- Buttons --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.btn--outline {
+  border: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn--outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* --- Card base --- */
 .card {
   background: var(--bg-card);
@@ -302,6 +329,69 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: var(--space-md);
+}
+
+/* Range Slider */
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  cursor: pointer;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-secondary);
+  transition: .4s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: var(--accent-primary);
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(20px);
 }
 
 /* --- Panels layout --- */
