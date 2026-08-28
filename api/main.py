@@ -19,25 +19,20 @@ from __future__ import annotations
 import json
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from api import stubs
+from api.errors import error_response as _error
+from api.errors import to_response, validation_response
 from api.models import AssessRequest, ClearRequest, OffersRequest, SettleRequest
 from engine.assess import (
-    InvalidWeightsError,
     LiquidityOverride,
     PreferenceOverride,
     Scenario,
-    UnknownEntityError,
 )
 from engine.assess import assess as engine_assess
-from engine.assess import score_offers as engine_score_offers
 from market import simulate
-
-# Settlement and learning are Phase 3; /api/settle stays on the stub until
-# market/settlement.py exists. Everything else is wired to the real engine.
 
 WEIGHT_TOLERANCE = 0.001  # SCHEMA.md §6: weights sum to 1.0 ± 0.001
 
@@ -57,6 +52,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def _malformed_body(request: Request, exc: RequestValidationError):
+    """422 for a malformed body — see api/errors.validation_response."""
+    return validation_response(exc)
+
 
 # ---------------------------------------------------------------------------
 # Market data — loaded once at startup. This is NOT session state.
@@ -78,27 +79,44 @@ def load_market() -> dict:
 # Request validation — a bad ID is a 400, never a 500 (SCHEMA.md §5.7)
 # ---------------------------------------------------------------------------
 
-def _error(status: int, error: str, detail: str, **extra) -> JSONResponse:
-    return JSONResponse(status_code=status, content={"error": error, "detail": detail, **extra})
-
-
-def _find_invoice(invoice_id: str) -> JSONResponse | None:
+def _find_invoice(invoice_id: str):
     """Return an error response if the invoice is unknown, else None."""
     if any(i["invoice_id"] == invoice_id for i in load_market()["invoices"]):
         return None
     return _error(400, "unknown_entity", f"{invoice_id} not in market", entity_id=invoice_id)
 
 
-def _check_weights(scenario) -> JSONResponse | None:
-    """Preference weights must sum to 1.0; the sliders are the usual offender."""
+def _check_scenario(scenario):
+    """Validate a scenario against the loaded market, or return the 400.
+
+    api/models.py has already rejected malformed values with a 422. What is
+    left needs the market to check: an id that does not exist, and whether the
+    six weights add up.
+
+    An override naming an unknown supplier or provider used to be ignored in
+    silence, which on stage looks like a slider that simply does nothing.
+    SCHEMA.md §5.7 says an unknown id in a request is a 400, and a scenario is
+    part of the request.
+    """
+    market = load_market()
+    suppliers = {s["supplier_id"] for s in market.get("suppliers", [])}
+    providers = {p["provider_id"] for p in market.get("providers", [])}
+
     for override in scenario.preference_overrides:
+        if override.supplier_id not in suppliers:
+            return _error(400, "unknown_entity",
+                          f"{override.supplier_id} not in market",
+                          entity_id=override.supplier_id)
         total = sum(override.weights.values())
         if abs(total - 1.0) > WEIGHT_TOLERANCE:
-            return _error(
-                400,
-                "invalid_weights",
-                f"Weights sum to {total:.2f}, expected 1.0",
-            )
+            return _error(400, "invalid_weights",
+                          f"Weights sum to {total:.2f}, expected 1.0")
+
+    for override in scenario.liquidity_overrides:
+        if override.provider_id not in providers:
+            return _error(400, "unknown_entity",
+                          f"{override.provider_id} not in market",
+                          entity_id=override.provider_id)
     return None
 
 
@@ -130,17 +148,13 @@ def to_scenario(scenario) -> Scenario:
 def _engine_call(fn, *args, **kwargs):
     """Run an engine/market call, mapping its exceptions to the right status.
 
-    A typo'd ID or bad weights is a bad request, never a 500 (SCHEMA.md §5.7).
+    The mapping itself lives in api/errors.py so there is one place that
+    decides what is a 400 and what is a 500 (SCHEMA.md §5.7).
     """
     try:
         return fn(*args, **kwargs)
-    except UnknownEntityError as exc:
-        return _error(400, "unknown_entity", str(exc),
-                      entity_id=getattr(exc, "entity_id", None))
-    except InvalidWeightsError as exc:
-        return _error(400, "invalid_weights", str(exc))
-    except Exception as exc:  # noqa: BLE001 — last resort, still a clean body
-        return _error(500, "engine_failure", f"{type(exc).__name__}: {exc}")
+    except Exception as exc:  # noqa: BLE001 — every path ends in a clean body
+        return to_response(exc)
 
 
 # ---------------------------------------------------------------------------
@@ -163,9 +177,8 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Endpoints — Phase 0 returns contract-valid static responses from api/stubs.py
-# so Person C can build against a running API. Swap each stub call for the real
-# engine/market call as those land; the response shape does not change.
+# Endpoints. All five call the real engine and market — there are no stubs
+# left. Each body stays under fifteen lines; logic lives in market/.
 # ---------------------------------------------------------------------------
 
 @app.get("/api/market")
@@ -186,7 +199,7 @@ def assess_invoice(req: AssessRequest):
     """Verification, risk and eligibility for one invoice. No offers."""
     return (
         _find_invoice(req.invoice_id)
-        or _check_weights(req.scenario)
+        or _check_scenario(req.scenario)
         or _engine_call(engine_assess, req.invoice_id, load_market(),
                         to_scenario(req.scenario))
     )
@@ -195,23 +208,26 @@ def assess_invoice(req: AssessRequest):
 @app.post("/api/offers")
 def get_offers(req: OffersRequest):
     """Generate and score competing offers. naive_ranking is always returned."""
-    if (err := _find_invoice(req.invoice_id) or _check_weights(req.scenario)):
+    if (err := _find_invoice(req.invoice_id) or _check_scenario(req.scenario)):
         return err
     return _engine_call(_offers, req.invoice_id, to_scenario(req.scenario))
 
 
 def _offers(invoice_id: str, scenario) -> dict:
-    """assess → agents bid → engine scores. The seam, in four lines."""
+    """assess, then hand the invoice to the one scoring seam.
+
+    Scoring deliberately goes through market.simulate.scored_offers() rather
+    than calling engine.score_offers() here — otherwise this endpoint and
+    clearing could value the same invoice differently.
+    """
     market = load_market()
     assessment = engine_assess(invoice_id, market, scenario)
-    raw = simulate.generate_offers(invoice_id, market, assessment, scenario)
-    preferences = simulate.resolve_preferences(invoice_id, market, scenario)
     return {
         "invoice_id": invoice_id,
         "assessment": assessment,
         # naive_ranking comes back on every response, so the frontend can
         # toggle the counterfactual with no second request (PERSON_B.md §4.3).
-        **engine_score_offers(raw, assessment, preferences),
+        **simulate.scored_offers(invoice_id, market, assessment, scenario),
     }
 
 
@@ -224,7 +240,7 @@ def clear_market(req: ClearRequest):
     for invoice_id in req.invoice_ids:
         if (err := _find_invoice(invoice_id)) is not None:
             return err
-    if (err := _check_weights(req.scenario)) is not None:
+    if (err := _check_scenario(req.scenario)) is not None:
         return err
     return _engine_call(simulate.clear, req.invoice_ids, load_market(),
                         to_scenario(req.scenario))
@@ -232,15 +248,13 @@ def clear_market(req: ClearRequest):
 
 @app.post("/api/settle")
 def settle_match(req: SettleRequest):
-    """Advance a match through settlement and return before/after/delta."""
-    if req.outcome not in ("settled", "late", "defaulted"):
-        return _error(
-            400,
-            "illegal_transition",
-            f"Cannot settle to state '{req.outcome}'; "
-            "expected one of settled, late, defaulted",
-        )
+    """Advance a match through settlement and return before/after/delta.
+
+    Which outcomes are legal is the state machine's call, not this endpoint's —
+    market/settlement.py rejects the rest and _engine_call maps that to a 400.
+    """
     return (
-        _check_weights(req.scenario)
-        or stubs.stub_settle(req.match_id, req.outcome, req.days_late)
+        _check_scenario(req.scenario)
+        or _engine_call(simulate.settle, req.match_id, req.outcome,
+                        req.days_late, load_market(), to_scenario(req.scenario))
     )

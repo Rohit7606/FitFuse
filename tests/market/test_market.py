@@ -17,6 +17,7 @@ Test list from PERSON_B.md §7:
 Owner: Person B
 """
 
+import copy
 import json
 import math
 import os
@@ -343,6 +344,8 @@ def demo_clearing():
         eligibility_by_invoice={
             "INV001": {e["provider_id"]: e for e in assessment["eligibility"]}},
         risk_by_invoice={"INV001": assessment["risk"]},
+        exposure_by_invoice={"INV001": {"buyer_id": invoice["buyer_id"],
+                                        "sector": "auto_components"}},
     )
 
 
@@ -362,14 +365,6 @@ class TestSyndication:
         assert m["total_advance_lakh"] == 9.00
         assert len(m["allocations"]) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Fixture drift, needs Person A and Person C. expected_match names "
-               "PRV001 as the syndication partner, which was true under the "
-               "hand-written fit scores. With the real scorer OFR004 ranks second, "
-               "so PRV004 fills the remainder. The fixture now contradicts its own "
-               "expected_ranking; one of the two has to move.",
-    )
     def test_matches_committed_fixture(self, demo_clearing):
         import json
         import os
@@ -454,10 +449,93 @@ class TestSyndication:
                 p: {"provider_id": p, "eligible": True, "max_fundable_lakh": 0.50}
                 for p in demo}},
             risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+            exposure_by_invoice={"INV001": {"buyer_id": "BUY001",
+                                            "sector": "auto_components"}},
         )
         assert result["matches"] == []
         assert result["unmatched"][0]["invoice_id"] == "INV001"
         assert "lakh" in result["unmatched"][0]["reason"]
+
+
+class TestConcentrationLimits:
+    """A limit that only holds for one invoice is not a limit (AGENTS.md §4.5)."""
+
+    # All four are on BUY001, so they compete for the same buyer headroom.
+    IDS = ["INV001", "INV014", "INV031", "INV033"]
+
+    def test_buyer_limit_binds_across_invoices(self):
+        """Kestrel must stop at its BUY001 headroom, not at its overall capacity.
+
+        Built deliberately, because the obvious version proves nothing. The
+        shared per-provider budget is the largest per-invoice max_fundable_lakh
+        across the batch, so if every invoice were on one buyer that budget
+        already equals the buyer cap and deleting the buyer check changes no
+        number. It only bites when the batch spans several buyers: the budget
+        is then set by some other buyer's invoice, and nothing stops the
+        provider spending it all against this one.
+
+        Sector limits are widened so they cannot be what binds, and Kestrel is
+        given ₹45 lakh of prior BUY001 exposure against a ₹75 lakh cap. It wants
+        ₹48.84 lakh. It may have ₹30.00.
+        """
+        from market.simulate import clear
+
+        market = copy.deepcopy(_market_json())
+        for provider in market["providers"]:
+            provider["sector_limits"] = {
+                sector: 0.99 for sector in (provider.get("sector_limits") or {})}
+            provider["current_exposure"]["by_sector"] = {}
+            if provider["provider_id"] == "PRV003":
+                provider["current_exposure"]["by_buyer"]["BUY001"] = 45.0
+
+        invoices = {i["invoice_id"]: i for i in market["invoices"]}
+        on_buyer = [i for i, v in invoices.items() if v["buyer_id"] == "BUY001"]
+        elsewhere = [i for i, v in invoices.items() if v["buyer_id"] != "BUY001"][:6]
+
+        funded = {}
+        for match in clear(sorted(on_buyer + elsewhere), market)["matches"]:
+            if invoices[match["invoice_id"]]["buyer_id"] != "BUY001":
+                continue
+            for alloc in match["allocations"]:
+                funded[alloc["provider_id"]] = (
+                    funded.get(alloc["provider_id"], 0.0) + alloc["amount_lakh"])
+
+        for provider in market["providers"]:
+            pid = provider["provider_id"]
+            if pid not in funded:
+                continue
+            cap = provider["buyer_limit"] * provider["total_portfolio_lakh"]
+            held = provider["current_exposure"]["by_buyer"].get("BUY001", 0.0)
+            assert held + funded[pid] <= cap + 1e-6, (
+                f"{pid} holds {held + funded[pid]:.2f} lakh against BUY001, "
+                f"cap {cap:.2f}")
+
+        assert funded.get("PRV003") == pytest.approx(30.0, abs=0.01), (
+            "the limit did not bind, so this test proves nothing")
+
+    def test_sector_limit_binds_across_invoices(self):
+        from market.simulate import clear
+
+        market = _market_json()
+        buyers = {b["buyer_id"]: b for b in market["buyers"]}
+        invoices = {i["invoice_id"]: i for i in market["invoices"]}
+        providers = {p["provider_id"]: p for p in market["providers"]}
+
+        funded = {}
+        for match in clear(self.IDS, market)["matches"]:
+            sector = buyers[invoices[match["invoice_id"]]["buyer_id"]]["sector"]
+            for alloc in match["allocations"]:
+                key = (alloc["provider_id"], sector)
+                funded[key] = funded.get(key, 0.0) + alloc["amount_lakh"]
+
+        for (provider_id, sector), total in funded.items():
+            provider = providers[provider_id]
+            limit = (provider.get("sector_limits") or {}).get(sector)
+            if limit is None:
+                continue
+            held = provider.get("current_exposure", {}).get("by_sector", {}).get(sector, 0.0)
+            cap = limit * provider["total_portfolio_lakh"]
+            assert held + total <= cap + 1e-6, f"{provider_id}/{sector}"
 
 
 class TestPurity:
@@ -475,16 +553,310 @@ class TestPurity:
 
 
 class TestSettlement:
-    """Settlement state machine — Phase 3, market/settlement.py not yet written."""
+    """The state machine — `matched` is not `funded` (SCHEMA.md §4.6)."""
 
-    @pytest.mark.skip(reason="Person B: implement after settlement")
+    def _match(self, state="matched"):
+        return {
+            "match_id": "MCH001", "invoice_id": "INV001",
+            "allocations": [{"provider_id": "PRV003", "amount_lakh": 6.00,
+                             "offer_id": "OFR003"}],
+            "syndicated": False, "total_advance_lakh": 6.00,
+            "blended_rate_annual": 0.086, "blended_cost_lakh": 0.08,
+            "supplier_fit_score": 0.9, "state": state, "days_to_settle": 0,
+            "reason_text": "Kestrel Credit Fund funds the full ₹6.00 lakh advance.",
+        }
+
     def test_illegal_transition(self):
-        pass
+        """settled → funded raises — nothing transitions out of a terminal state."""
+        from market.settlement import IllegalTransitionError, advance
+        with pytest.raises(IllegalTransitionError) as exc:
+            advance(self._match("settled"), {"outcome": "funded"}, _market_json())
+        assert exc.value.current_state == "settled"
+        assert exc.value.target_state == "funded"
+
+    def test_cannot_settle_before_funding(self):
+        """The refusal names the fix, not just the states (PERSON_B.md §5)."""
+        from market.settlement import IllegalTransitionError, advance
+        with pytest.raises(IllegalTransitionError, match="fund it first"):
+            advance(self._match("matched"), {"outcome": "late"}, _market_json())
+
+    @pytest.mark.parametrize("state", ["settled", "defaulted", "cancelled"])
+    def test_terminal_states_are_terminal(self, state):
+        from market.settlement import LEGAL_TRANSITIONS
+        assert LEGAL_TRANSITIONS[state] == set()
+
+    def test_legal_path_walks_all_the_way(self):
+        from market.settlement import advance
+        market = _market_json()
+        match = self._match("matched")
+        for target in ("funded", "late", "settled"):
+            match = advance(match, {"outcome": target, "days_late": 5}, market)
+            assert match["state"] == target
+        assert match["days_late"] == 5
+
+    def test_funding_checks_liquidity_again(self):
+        """A provider drained after clearing cannot fund — cancel it, don't settle it.
+
+        This is where the state machine earns its keep: without the re-check, a
+        scenario that empties Kestrel between clearing and disbursement would
+        still report ₹6 lakh as paid out.
+        """
+        from market.settlement import IllegalTransitionError, advance
+        market = _market_json()
+        for provider in market["providers"]:
+            if provider["provider_id"] == "PRV003":
+                provider["available_liquidity_lakh"] = 1.00
+        with pytest.raises(IllegalTransitionError, match="short of"):
+            advance(self._match("matched"), {"outcome": "funded"}, market)
+        # ...and cancelling it is always available.
+        assert advance(self._match("matched"), {"outcome": "cancelled"},
+                       market)["state"] == "cancelled"
+
+    def test_advance_does_not_mutate(self):
+        from market.settlement import advance
+        match = self._match("matched")
+        before = copy.deepcopy(match)
+        advance(match, {"outcome": "funded"}, _market_json())
+        assert match == before
+
+    def test_clearing_narration_survives_settlement(self):
+        """Demo steps 7 and 8 are one screen; the syndication reason must persist."""
+        from market.settlement import advance
+        match = self._match("matched")
+        funded = advance(match, {"outcome": "funded"}, _market_json())
+        assert funded["reason_text"] == match["reason_text"]
+        assert "disbursed" in funded["state_reason_text"]
+
+
+class TestMatchIdIsAnAddress:
+    """/api/settle addresses a match by id, and the API holds no state."""
+
+    def test_match_id_follows_the_invoice(self):
+        from market.clearing import match_id_for
+        assert match_id_for("INV001") == "MCH001"
+        assert match_id_for("INV014") == "MCH014"
+
+    def test_id_does_not_depend_on_the_batch(self):
+        """MCH014 means INV014 whether or not INV001 was in the same request.
+
+        Numbering by position made MCH001 mean "whatever sorted first in this
+        request", so settling MCH001 could resolve to a different invoice than
+        the one the caller matched.
+        """
+        from market.simulate import clear
+        market = _market_json()
+        alone = clear(["INV014"], market)["matches"]
+        batched = [m for m in clear(["INV001", "INV014"], market)["matches"]
+                   if m["invoice_id"] == "INV014"]
+        assert alone and batched
+        assert alone[0]["match_id"] == batched[0]["match_id"] == "MCH014"
+
+
+def _fixture():
+    path = os.path.join(os.path.dirname(__file__), "..", "..",
+                        "data", "fixtures", "demo_scenario.json")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+@pytest.fixture(scope="module")
+def demo_settlement():
+    """Settle INV001 five days late, through the real pipeline. Demo step 8."""
+    from market.simulate import settle
+    fixture = _fixture()
+    event = fixture["settlement_event"]
+    return settle("MCH001", event["outcome"], event["days_late"], _market_json())
 
 
 class TestLearning:
-    """Learning loop — Phase 3, market/learning.py not yet written."""
+    """Demo step 8 — the outcome feeds back into the market."""
 
-    @pytest.mark.skip(reason="Person B: implement after learning")
-    def test_learning_delta(self):
-        pass
+    def test_learning_delta(self, demo_settlement):
+        """Settling INV001 late reproduces the fixture's expected_after_learning."""
+        expected = _fixture()["expected_after_learning"]
+        update = demo_settlement["delta"]["buyer_updates"][0]
+        assert update["buyer_id"] == "BUY001"
+        assert update["avg_payment_delay_after"] == expected["BUY001_avg_delay"]
+
+    def test_delay_moves_by_the_learning_rate(self, demo_settlement):
+        """4 days moving 30% toward an observed 5 is 4.3 — reported as 5.
+
+        Rounded up, not to nearest: engine/risk.py reads this field as an
+        integer, and 4.3 reported as 4 would make a late payment a no-op.
+        """
+        update = demo_settlement["delta"]["buyer_updates"][0]
+        assert update["avg_payment_delay_before"] == 4
+        assert update["avg_payment_delay_after"] == 5
+        assert update["payment_delay_trend_after"] == 1.0
+
+    def test_secondary_invoice_repriced(self, demo_settlement):
+        """The fixture's secondary invoice is among those repriced."""
+        secondary = _fixture()["secondary_invoice_id"]
+        repriced = {r["invoice_id"]: r
+                    for r in demo_settlement["delta"]["repriced_invoices"]}
+        assert secondary in repriced
+        assert repriced[secondary]["pd_after"] > repriced[secondary]["pd_before"]
+
+    def test_secondary_invoice_crosses_a_band(self, demo_settlement):
+        expected = _fixture()["expected_after_learning"]
+        secondary = _fixture()["secondary_invoice_id"]
+        repriced = {r["invoice_id"]: r
+                    for r in demo_settlement["delta"]["repriced_invoices"]}
+        assert repriced[secondary]["band_before"] == expected["INV014_band_before"]
+        assert repriced[secondary]["band_after"] == expected["INV014_band_after"]
+
+    def test_only_movers_are_reported(self, demo_settlement):
+        """SCHEMA.md §4.7: repriced_invoices holds invoices whose pd moved."""
+        repriced = demo_settlement["delta"]["repriced_invoices"]
+        assert repriced, "a late payment must move something"
+        assert all(r["pd_after"] != r["pd_before"] for r in repriced)
+        # INV002 is on the same buyer but is a rejected duplicate, so it has no
+        # pd to move and must not pad the list the judge reads.
+        assert "INV002" not in {r["invoice_id"] for r in repriced}
+
+    def test_only_this_buyer_is_touched(self, demo_settlement):
+        """A late payment by one buyer must not reprice the rest of the market."""
+        market = _market_json()
+        buyers = {i["invoice_id"]: i["buyer_id"] for i in market["invoices"]}
+        assert {buyers[r["invoice_id"]]
+                for r in demo_settlement["delta"]["repriced_invoices"]} == {"BUY001"}
+
+    def test_late_does_not_return_liquidity(self, demo_settlement):
+        """PERSON_B.md §3.4: settled returns the capital, late returns nothing yet.
+
+        DEMO_SCENARIO.md §5 and SCHEMA.md §4.7 both show capital coming back on
+        a *late* outcome. That is the wrong way round — the buyer has not paid —
+        so this follows PERSON_B.md §3.4 and the two shared docs need a fix.
+        """
+        for entry in demo_settlement["delta"]["liquidity_updates"]:
+            assert entry["returned_lakh"] == 0.0
+            assert entry["available_after_lakh"] == entry["available_before_lakh"]
+
+    def test_settled_returns_liquidity(self):
+        from market.simulate import settle
+        result = settle("MCH001", "settled", 0, _market_json())
+        updates = result["delta"]["liquidity_updates"]
+        assert updates
+        for entry in updates:
+            assert entry["returned_lakh"] > 0
+
+    def test_default_consumes_liquidity_and_costs_more(self):
+        """A write-off must be visibly worse than a late payment, not just different."""
+        from market.simulate import settle
+        market = _market_json()
+        late = settle("MCH001", "late", 5, market)["delta"]
+        gone = settle("MCH001", "defaulted", 0, market)["delta"]
+        assert all(e["returned_lakh"] == 0.0 for e in gone["liquidity_updates"])
+        assert (gone["buyer_updates"][0]["avg_payment_delay_after"]
+                > late["buyer_updates"][0]["avg_payment_delay_after"])
+        assert (gone["provider_bid_adjustments"][0]["rate_adjustment"]
+                > late["provider_bid_adjustments"][0]["rate_adjustment"])
+
+    def test_bid_adjustment_is_a_real_repricing(self, demo_settlement):
+        """The adjustment must be the change in the agent's own pricing function.
+
+        Not a second, unexplained model bolted on for the demo — otherwise the
+        number on screen is not the number the market would actually bid.
+        """
+        from engine.assess import assess
+        from engine.config import DEFAULT_EXPECTED_COMPETITORS, SEGMENT_LEARNING_RATE
+        from market.agents import bid_rate
+
+        adjustment = demo_settlement["delta"]["provider_bid_adjustments"][0]
+        provider = next(p for p in _market_json()["providers"]
+                        if p["provider_id"] == adjustment["provider_id"])
+
+        market = _market_json()
+        after = copy.deepcopy(market)
+        buyer = next(b for b in after["buyers"] if b["buyer_id"] == "BUY001")
+        buyer["avg_payment_delay_days"] = 5
+        buyer["payment_delay_trend"] = 1.0
+
+        was = bid_rate(provider, assess("INV001", market)["risk"],
+                       DEFAULT_EXPECTED_COMPETITORS)
+        now = bid_rate(provider, assess("INV001", after)["risk"],
+                       DEFAULT_EXPECTED_COMPETITORS)
+        assert adjustment["rate_adjustment"] == pytest.approx(
+            SEGMENT_LEARNING_RATE * (now - was), abs=1e-6)
+
+    def test_the_loop_actually_closes(self):
+        """Kestrel's next bid moving up must be true of the next bid, not a caption.
+
+        The learned adjustment is carried in the returned market, so re-running
+        the agents on it produces the higher rate. If it only lived in the delta
+        the learning claim would be decorative.
+
+        The buyer is put back exactly as it was before the comparison. Without
+        that, the after-market prices higher anyway because its pd moved, and
+        this test would pass with the adjustment deleted entirely — which is
+        precisely what it exists to catch.
+        """
+        from engine.assess import assess
+        from market.learning import apply_outcome
+        from market.settlement import commit_liquidity
+        from market.simulate import clear, generate_offers
+
+        market = _market_json()
+        match = clear(["INV001"], market)["matches"][0]
+        funded = commit_liquidity(market, match)
+        after, delta = apply_outcome({**match, "state": "late"},
+                                     {"outcome": "late", "days_late": 5}, funded)
+        assert delta["provider_bid_adjustments"]
+
+        isolated = copy.deepcopy(after)
+        original = next(b for b in market["buyers"] if b["buyer_id"] == "BUY001")
+        for buyer in isolated["buyers"]:
+            if buyer["buyer_id"] == "BUY001":
+                buyer.update(copy.deepcopy(original))
+        assert (assess("INV001", isolated)["risk"]
+                == assess("INV001", market)["risk"]), "risk must be held constant"
+
+        winner = match["allocations"][0]["provider_id"]
+        before_rate = {o["provider_id"]: o["rate_annual"] for o in generate_offers(
+            "INV001", market, assess("INV001", market))}
+        after_rate = {o["provider_id"]: o["rate_annual"] for o in generate_offers(
+            "INV001", isolated, assess("INV001", isolated))}
+        assert after_rate[winner] > before_rate[winner]
+
+    def test_summary_text_is_generated_from_the_numbers(self, demo_settlement):
+        """Template-generated, and every number in it is one the delta reports."""
+        delta = demo_settlement["delta"]
+        summary = delta["summary_text"]
+        assert "Vireon Motors India Ltd" in summary
+        assert str(delta["trigger"]["days_late"]) in summary
+        assert str(len(delta["repriced_invoices"])) in summary
+
+
+class TestSettlementPurity:
+    """The API is stateless — settling must not leave a trace."""
+
+    def test_no_market_mutation(self):
+        from market.simulate import settle
+        market = _market_json()
+        before = copy.deepcopy(market)
+        settle("MCH001", "late", 5, market)
+        assert market == before
+
+    def test_determinism(self):
+        from market.simulate import settle
+        first = settle("MCH001", "late", 5, _market_json())
+        second = settle("MCH001", "late", 5, _market_json())
+        assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+
+    def test_before_and_after_line_up(self, demo_settlement):
+        """Row for row, so the UI can diff them without matching on identity."""
+        before = demo_settlement["before"]["affected_invoices"]
+        after = demo_settlement["after"]["affected_invoices"]
+        assert [r["invoice_id"] for r in before] == [r["invoice_id"] for r in after]
+        assert before[0]["invoice_id"] == "INV001"
+
+    def test_two_evaluations_not_one(self, demo_settlement):
+        """SCHEMA.md §5.6: the before/after comparison is the product.
+
+        Every affected invoice is assessed on both sides, and at least one must
+        differ — an "after" that echoes "before" would pass a shape check while
+        saying nothing.
+        """
+        before = demo_settlement["before"]["affected_invoices"]
+        after = demo_settlement["after"]["affected_invoices"]
+        assert any(b["pd"] != a["pd"] for b, a in zip(before, after, strict=True))

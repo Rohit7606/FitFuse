@@ -92,8 +92,8 @@ python -m engine.mockgen --seed 42 --out data/mock/market.json
 # Assess an invoice
 python -m engine.assess data/mock/market.json --invoice INV001
 
-# Run market simulator (Person B)
-python -m market.simulate data/mock/market.json
+# Run market simulator (Person B) — add --settle late to include demo step 8
+python -m market.simulate data/mock/market.json --invoice INV001
 
 # Run the API
 uvicorn api.main:app --reload --port 8000
@@ -104,6 +104,21 @@ pytest tests/ -v
 # Lint
 ruff check .
 ```
+
+### The demo
+
+Starts the API and the frontend together, both **without** `--reload` — the
+file watcher can restart the backend mid-presentation.
+
+```powershell
+.\demo.ps1          # Windows
+```
+
+```bash
+make demo           # macOS / Linux
+```
+
+Then http://localhost:5173. `GET /health` says which dataset is loaded.
 
 ### Web (Person C)
 

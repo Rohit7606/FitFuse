@@ -1,7 +1,7 @@
 export default function PreferenceSliders({ weights, onChange }) {
   const DIMENSIONS = [
     { key: 'cost', label: 'Cost (Interest Rate)' },
-    { key: 'advance_rate', label: 'Advance Rate' },
+    { key: 'advance', label: 'Advance Rate' },
     { key: 'speed', label: 'Speed to Cash' },
     { key: 'tenor', label: 'Tenor' },
     { key: 'fees', label: 'Fees' },
@@ -67,10 +67,10 @@ export default function PreferenceSliders({ weights, onChange }) {
           Adjust sliders to re-rank the market based on the supplier&apos;s actual needs. Weights must sum to 100%.
         </p>
         <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-          <button className="btn btn--outline" onClick={() => setPreset({ cost: 0.8, advance_rate: 0.05, speed: 0.05, tenor: 0.05, fees: 0.025, structure: 0.025 })}>
+          <button className="btn btn--outline" onClick={() => setPreset({ cost: 0.8, advance: 0.05, speed: 0.05, tenor: 0.05, fees: 0.025, structure: 0.025 })}>
             Cost Sensitive
           </button>
-          <button className="btn btn--outline" onClick={() => setPreset({ cost: 0.10, advance_rate: 0.05, speed: 0.60, tenor: 0.15, fees: 0.05, structure: 0.05 })}>
+          <button className="btn btn--outline" onClick={() => setPreset({ cost: 0.10, advance: 0.05, speed: 0.60, tenor: 0.15, fees: 0.05, structure: 0.05 })}>
             Need Cash Fast
           </button>
         </div>

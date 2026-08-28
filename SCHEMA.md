@@ -484,16 +484,16 @@ An `Offer` is produced by `market/agents.py`. A `ScoredOffer` is an `Offer` plus
   "invoice_id": "INV001",
   "allocations": [
     { "provider_id": "PRV003", "amount_lakh": 6.00, "offer_id": "OFR003" },
-    { "provider_id": "PRV001", "amount_lakh": 3.00, "offer_id": "OFR001" }
+    { "provider_id": "PRV004", "amount_lakh": 3.00, "offer_id": "OFR004" }
   ],
   "syndicated": true,
   "total_advance_lakh": 9.00,
-  "blended_rate_annual": 0.0873,
-  "blended_cost_lakh": 0.17,
+  "blended_rate_annual": 0.0887,
+  "blended_cost_lakh": 0.16784,
   "supplier_fit_score": 0.8600,
   "state": "matched",
   "days_to_settle": 0,
-  "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Meridian Bank funds the remaining ₹3.00 lakh."
+  "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Nimbus Finserv funds the remaining ₹3.00 lakh."
 }
 ```
 
@@ -526,23 +526,23 @@ What changed after an outcome was recorded.
 
 ```json
 {
-  "trigger": { "match_id": "MCH001", "outcome": "late", "days_late": 5 },
+  "trigger": { "match_id": "MCH001", "invoice_id": "INV001", "buyer_id": "BUY001", "outcome": "late", "days_late": 5, "band_before": "prime", "band_after": "standard" },
   "buyer_updates": [
-    { "buyer_id": "BUY001", "avg_payment_delay_before": 4, "avg_payment_delay_after": 5,
-      "payment_delay_trend_before": 0.0, "payment_delay_trend_after": 1.0 }
+    { "buyer_id": "BUY001", "name": "Vireon Motors India Ltd", "avg_payment_delay_before": 4, "avg_payment_delay_after": 5,
+      "payment_delay_trend_before": 0.0, "payment_delay_trend_after": 1.0, "observed_delay_days": 5 }
   ],
   "repriced_invoices": [
-    { "invoice_id": "INV014", "pd_before": 0.0210, "pd_after": 0.0265,
-      "band_before": "prime", "band_after": "standard" }
+    { "invoice_id": "INV014", "pd_before": 0.0181, "pd_after": 0.0204,
+      "band_before": "prime", "band_after": "prime" }
   ],
   "liquidity_updates": [
-    { "provider_id": "PRV003", "available_before_lakh": 594.00, "available_after_lakh": 600.00 }
+    { "provider_id": "PRV003", "name": "Kestrel Credit Fund", "available_before_lakh": 494.00, "available_after_lakh": 494.00, "returned_lakh": 0.0, "reason": "Capital stays committed while the invoice is late but recoverable." }
   ],
   "provider_bid_adjustments": [
-    { "provider_id": "PRV003", "segment": "auto_components/AA/60d",
-      "rate_adjustment": 0.0015, "reason": "Observed 5-day delay on BUY001" }
+    { "provider_id": "PRV003", "name": "Kestrel Credit Fund", "segment": "auto_components/AA/60d",
+      "rate_adjustment": 0.000468, "reason": "Observed a 5-day delay on Vireon Motors India Ltd." }
   ],
-  "summary_text": "Vireon Motors paid 5 days late. Three other invoices on this buyer were repriced and Kestrel Credit Fund raised its rate on this segment by 15 basis points."
+  "summary_text": "Vireon Motors India Ltd paid 5 days late. INV001 moved from prime to standard. 14 other open invoices on that buyer were repriced. Kestrel Credit Fund and 1 other provider raised their next bids on auto_components/AA/60d by 5 basis points."
 }
 ```
 
@@ -742,3 +742,4 @@ If a mock does not validate, it is not a mock — it is a future integration bug
 |---|---|
 | 1.0 | Initial contract. Monetary unit fixed as ₹ lakh. `pd_upper` designated the eligibility screen rather than `pd`. `naive_ranking` and `naive_mode` added as first-class contract fields to support the counterfactual. `max_fundable_lakh` added to `ProviderEligibility` to enable syndication |
 | 1.1 | Added optional `Provider.target_margin` — the pricing spread `PERSON_B.md` §3.4 requires, which had no field in the contract. Documented it as distinct from `target_return`, which is an eligibility hurdle rather than a pricing term. Additive only; no field renamed or removed. |
+| 1.2 | `Match` and `LearningDelta` JSON examples updated to match the actual shape returned by `market/settlement.py` and `market/learning.py`. Syndication partner corrected to `PRV004`, `blended_rate_annual` and `blended_cost_lakh` added to match, late outcome updated to show no liquidity returns, and `trigger` enriched with `invoice_id`, `buyer_id`, and band transition. |
