@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 # ---------------------------------------------------------------------------
 # Custom exceptions — B maps these to HTTP 400 in api/errors.py
 # ---------------------------------------------------------------------------

@@ -301,13 +301,13 @@ def generate_market(seed=MOCK_SEED):
 
     for i in range(2, 61): # SUP002 to SUP060
         sid = f"SUP{i:03d}"
-        
+
         while True:
             if i == 2:
                 name_candidate = "Ramesh Enterprises"
             else:
                 name_candidate = f"{rng.choice(names_prefix)} {rng.choice(names_suffix)} Pvt Ltd"
-            
+
             if name_candidate not in used_names:
                 used_names.add(name_candidate)
                 break
@@ -384,13 +384,13 @@ def generate_market(seed=MOCK_SEED):
     ]
     for i in range(2, 13):
         bid = f"BUY{i:03d}"
-        
+
         while True:
             name_candidate = f"{rng.choice(b_names)} {rng.choice(b_types)} Ltd"
             if name_candidate not in used_names:
                 used_names.add(name_candidate)
                 break
-                
+
         grade = rng.choice(["AAA", "AA", "AA", "A", "A", "A", "BBB", "BB"]) # skewed towards A/AA
         buy = {
             "buyer_id": bid,
@@ -414,7 +414,8 @@ def generate_market(seed=MOCK_SEED):
         "industrial_lubricants", "cold_rolled_coils", "agro_seed_consignment",
     ]
     for i in range(3, 181):
-        if i == 14: continue # INV014 already done
+        if i == 14:
+            continue  # INV014 is placed explicitly above
         iid = f"INV{i:03d}"
         # Jitter first, then clamp — clamping first lets the jitter push it back out of range.
         amount = round(rng.lognormvariate(1.5, 1.2) + rng.random(), 2)
@@ -444,13 +445,13 @@ def generate_market(seed=MOCK_SEED):
             "field_confidence": {}
         }
         invoices.append(inv)
-        
+
     # Generate Financing History (~50 entries)
     for i in range(1, 51):
         hist_iid = f"HINV{i:03d}"
         provider_id = rng.choice(providers)["provider_id"]
         buyer_id = rng.choice(buyers)["buyer_id"]
-        
+
         outcome_roll = rng.random()
         if outcome_roll < 0.80:
             outcome = "settled"
@@ -461,7 +462,7 @@ def generate_market(seed=MOCK_SEED):
         else:
             outcome = "defaulted"
             days_late = 90
-            
+
         hist = {
             "invoice_id": hist_iid,
             "provider_id": provider_id,
@@ -487,7 +488,7 @@ def generate_market(seed=MOCK_SEED):
         "providers": sorted(providers, key=lambda x: x["provider_id"]),
         "financing_history": history
     }
-    
+
     return market
 
 def validate_market(market, schema_path):
