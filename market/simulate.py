@@ -58,12 +58,41 @@ def generate_offers(
 ) -> list[dict]:
     """Have all eligible provider agents generate competing offers.
 
-    Returns:
-        List of Offer dicts per SCHEMA.md §4.5.
+    Returns UNSCORED Offer dicts (SCHEMA.md §4.5) — rate, advance, speed, fees,
+    structure and committed amount, with no fit_score, feasible or
+    rejection_reason. Pricing is the agents' job; valuing an offer for a
+    particular supplier is engine/scoring.py's.
+
+    Callers that need ScoredOffers should use scored_offers() below rather than
+    calling engine.score_offers() themselves — clearing and /api/offers must
+    never score the same invoice two different ways.
     """
     invoice = _find(market.get("invoices", []), "invoice_id", invoice_id)
     providers = _with_liquidity_overrides(market.get("providers", []), scenario)
     return agents_generate_offers(providers, invoice, assessment)
+
+
+def scored_offers(
+    invoice_id: str,
+    market: dict,
+    assessment: dict,
+    scenario: object | None = None,
+) -> dict:
+    """The seam: agents bid, then Person A's engine values those bids.
+
+    This is the one place the two halves of the system meet. market/ decides
+    what each provider will offer; engine/ decides what those offers are worth
+    to this supplier. Both clear() and /api/offers go through here, so a single
+    invoice can never be scored two different ways depending on which endpoint
+    asked (AGENTS.md §2.1 wants this seam to be one explicit signature).
+
+    Returns:
+        { "offers": [ScoredOffer...], "ranking": [...],
+          "naive_ranking": [...], "summary": {...} }  — SCHEMA.md §5.4
+    """
+    raw = generate_offers(invoice_id, market, assessment, scenario)
+    preferences = resolve_preferences(invoice_id, market, scenario)
+    return engine_score_offers(raw, assessment, preferences)
 
 
 def clear(
@@ -101,9 +130,7 @@ def clear(
             })
             continue
 
-        raw = agents_generate_offers(providers, invoice, assessment)
-        preferences = resolve_preferences(invoice_id, market, scenario)
-        scored = engine_score_offers(raw, assessment, preferences)
+        scored = scored_offers(invoice_id, market, assessment, scenario)
 
         invoices.append(invoice)
         offers_by_invoice[invoice_id] = scored["offers"]

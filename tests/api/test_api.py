@@ -144,6 +144,43 @@ class TestErrorHandling:
             assert r.status_code < 500, f"{payload} produced a {r.status_code}"
 
 
+class TestScoringSeam:
+    """One invoice must never be scored two different ways.
+
+    Person A raised this in review: agents produce unscored Offers, clearing
+    needs ScoredOffers, and for a while both /api/offers and simulate.clear()
+    called engine.score_offers() independently. Two call sites is two chances
+    to drift, so scoring now goes through market.simulate.scored_offers() and
+    this test holds it there.
+    """
+
+    def test_endpoint_and_seam_agree(self):
+        from api.main import load_market, to_scenario
+        from engine.assess import assess
+        from market import simulate
+
+        market = load_market()
+        assessment = assess("INV001", market)
+        seam = simulate.scored_offers("INV001", market, assessment,
+                                      to_scenario(None))
+        endpoint = client.post("/api/offers",
+                               json={"invoice_id": "INV001", **BASELINE}).json()
+        for key in ("offers", "ranking", "naive_ranking", "summary"):
+            assert endpoint[key] == seam[key], f"{key} diverges from the seam"
+
+    def test_clearing_uses_the_same_scoring(self):
+        """Clearing must rank on the same fit scores the offers endpoint shows."""
+        from api.main import load_market
+        from market import simulate
+
+        market = load_market()
+        endpoint = client.post("/api/offers",
+                               json={"invoice_id": "INV001", **BASELINE}).json()
+        winner = endpoint["ranking"][0]
+        match = simulate.clear(["INV001"], market)["matches"][0]
+        assert match["allocations"][0]["offer_id"] == winner
+
+
 class TestStateless:
     """No server-side state — AGENTS.md §3.4."""
 

@@ -33,7 +33,6 @@ from engine.assess import (
     UnknownEntityError,
 )
 from engine.assess import assess as engine_assess
-from engine.assess import score_offers as engine_score_offers
 from market import simulate
 
 # Settlement and learning are Phase 3; /api/settle stays on the stub until
@@ -163,9 +162,9 @@ def health():
 
 
 # ---------------------------------------------------------------------------
-# Endpoints — Phase 0 returns contract-valid static responses from api/stubs.py
-# so Person C can build against a running API. Swap each stub call for the real
-# engine/market call as those land; the response shape does not change.
+# Endpoints. /api/assess, /api/offers and /api/clear call the real engine and
+# market. /api/settle is the last one still on a stub — market/settlement.py
+# and market/learning.py are Phase 3.
 # ---------------------------------------------------------------------------
 
 @app.get("/api/market")
@@ -201,17 +200,20 @@ def get_offers(req: OffersRequest):
 
 
 def _offers(invoice_id: str, scenario) -> dict:
-    """assess → agents bid → engine scores. The seam, in four lines."""
+    """assess, then hand the invoice to the one scoring seam.
+
+    Scoring deliberately goes through market.simulate.scored_offers() rather
+    than calling engine.score_offers() here — otherwise this endpoint and
+    clearing could value the same invoice differently.
+    """
     market = load_market()
     assessment = engine_assess(invoice_id, market, scenario)
-    raw = simulate.generate_offers(invoice_id, market, assessment, scenario)
-    preferences = simulate.resolve_preferences(invoice_id, market, scenario)
     return {
         "invoice_id": invoice_id,
         "assessment": assessment,
         # naive_ranking comes back on every response, so the frontend can
         # toggle the counterfactual with no second request (PERSON_B.md §4.3).
-        **engine_score_offers(raw, assessment, preferences),
+        **simulate.scored_offers(invoice_id, market, assessment, scenario),
     }
 
 
