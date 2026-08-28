@@ -84,25 +84,106 @@ class TestHardConstraints:
 class TestVerification:
     """Verification edge cases."""
 
-    @pytest.mark.skip(reason="Person A: implement after verify")
     def test_duplicate_blocked(self):
-        pass
+        """INV002 is rejected with duplicate_of: INV001."""
+        from engine.mockgen import generate_market
+        from engine.verify import verify
 
-    @pytest.mark.skip(reason="Person A: implement after verify")
+        market = generate_market(42)
+        v = verify("INV002", market)
+        assert v["status"] == "rejected"
+        assert v["duplicate_detected"] is True
+        assert v["duplicate_of"] == "INV001"
+        # No risk score should be computed — rejected invoices stop here.
+        assert v["field_confidence"] == {}
+        assert v["unknown_field_count"] == 0
+
     def test_irn_null_rejected(self):
-        pass
+        """A null IRN rejects the invoice; no risk score is produced."""
+        import copy
+
+        from engine.mockgen import generate_market
+        from engine.verify import verify
+
+        market = generate_market(42)
+        # Patch INV001 to have a null IRN.
+        market = copy.deepcopy(market)
+        for inv in market["invoices"]:
+            if inv["invoice_id"] == "INV001":
+                inv["irn"] = None
+                break
+        v = verify("INV001", market)
+        assert v["status"] == "rejected"
+        assert v["irn_valid"] is False
+        assert v["duplicate_detected"] is False
+        assert "not registered" in v["reason_text"].lower()
 
 
 class TestRisk:
     """Risk model edge cases."""
 
-    @pytest.mark.skip(reason="Person A: implement after risk")
     def test_uncertainty_widens(self):
-        pass
+        """Adding an unknown field increases pd_upper."""
+        import copy
 
-    @pytest.mark.skip(reason="Person A: implement after risk")
+        from engine.mockgen import generate_market
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = generate_market(42)
+        inv = next(i for i in market["invoices"] if i["invoice_id"] == "INV001")
+        sup = next(s for s in market["suppliers"] if s["supplier_id"] == inv["supplier_id"])
+        buy = next(b for b in market["buyers"] if b["buyer_id"] == inv["buyer_id"])
+
+        # Baseline: INV001 has 1 unknown (delivery_confirmed)
+        v_base = verify("INV001", market)
+        r_base = score_risk(inv, sup, buy, v_base)
+
+        # Widened: patch delivery_confirmed AND null out prior_defaults
+        market2 = copy.deepcopy(market)
+        for s in market2["suppliers"]:
+            if s["supplier_id"] == "SUP001":
+                s["prior_defaults"] = None
+                break
+        v_wide = verify("INV001", market2)
+        assert v_wide["unknown_field_count"] > v_base["unknown_field_count"]
+
+        inv2 = next(i for i in market2["invoices"] if i["invoice_id"] == "INV001")
+        sup2 = next(s for s in market2["suppliers"] if s["supplier_id"] == inv2["supplier_id"])
+        buy2 = next(b for b in market2["buyers"] if b["buyer_id"] == inv2["buyer_id"])
+        r_wide = score_risk(inv2, sup2, buy2, v_wide)
+        assert r_wide["pd_upper"] > r_base["pd_upper"]
+        assert r_wide["uncertainty"] > r_base["uncertainty"]
+
     def test_null_vs_zero(self):
-        pass
+        """prior_defaults=0 and null produce different pd."""
+        import copy
+
+        from engine.mockgen import generate_market
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = generate_market(42)
+        inv = next(i for i in market["invoices"] if i["invoice_id"] == "INV001")
+        sup_zero = next(s for s in market["suppliers"] if s["supplier_id"] == "SUP001")
+        buy = next(b for b in market["buyers"] if b["buyer_id"] == inv["buyer_id"])
+        assert sup_zero["prior_defaults"] == 0  # explicitly zero
+
+        v = verify("INV001", market)
+        r_zero = score_risk(inv, sup_zero, buy, v)
+
+        # Patch to null — absence is not a clean record
+        market2 = copy.deepcopy(market)
+        for s in market2["suppliers"]:
+            if s["supplier_id"] == "SUP001":
+                s["prior_defaults"] = None
+                break
+        v2 = verify("INV001", market2)
+        sup_null = next(s for s in market2["suppliers"] if s["supplier_id"] == "SUP001")
+        r_null = score_risk(inv, sup_null, buy, v2)
+
+        # null should produce a higher pd than explicit zero
+        assert r_null["pd"] > r_zero["pd"]
 
     @pytest.mark.skip(reason="Person A: implement after risk")
     def test_scores_bounded(self):
