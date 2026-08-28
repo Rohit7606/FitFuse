@@ -154,68 +154,61 @@ def score_offers(
         offer["rejection_reason"] = rejection_reason
 
     # ------------------------------------------------------------------
-    # Step 3: Normalise 6 attributes across FEASIBLE offers only
+    # Step 3: Normalise 6 attributes across FEASIBLE offers only (PERSON_A.md §3.4)
     # ------------------------------------------------------------------
     feasible_offers = [o for o in scored_offers if o["feasible"]]
 
     if feasible_offers:
-        for offer in feasible_offers:
-            rate_annual = offer["rate_annual"]
-            advance_rate = offer["advance_rate"]
-            days_to_settle = offer["days_to_settle"]
-            tenor_days = offer.get("tenor_days", 60)
-            fee_percent = offer.get("fee_percent", 0.0)
-            struct = offer.get("repayment_structure")
-            oid = offer.get("offer_id", "")
+        costs = [o["total_cost_lakh"] for o in feasible_offers]
+        advances = [o["advance_rate"] for o in feasible_offers]
+        speeds = [o["days_to_settle"] for o in feasible_offers]
+        tenors = [o["tenor_days"] for o in feasible_offers]
+        fees = [o["_fee_total"] for o in feasible_offers]
 
-            # 1. Structure score: 1.0 if matches preferred, else STRUCTURE_MISMATCH (0.60)
+        min_cost, max_cost = min(costs), max(costs)
+        min_adv, max_adv = min(advances), max(advances)
+        min_spd, max_spd = min(speeds), max(speeds)
+        min_tnr, max_tnr = min(tenors), max(tenors)
+        min_fee, max_fee = min(fees), max(fees)
+
+        span_cost = max_cost - min_cost
+        span_adv = max_adv - min_adv
+        span_spd = max_spd - min_spd
+        span_tnr = max_tnr - min_tnr
+        span_fee = max_fee - min_fee
+
+        for offer in feasible_offers:
+            cost_score = (
+                1.0 - (offer["total_cost_lakh"] - min_cost) / span_cost
+                if span_cost > 0
+                else 1.0
+            )
+            adv_score = (
+                (offer["advance_rate"] - min_adv) / span_adv
+                if span_adv > 0
+                else 1.0
+            )
+            speed_score = (
+                1.0 - (offer["days_to_settle"] - min_spd) / span_spd
+                if span_spd > 0
+                else 1.0
+            )
+            tenor_score = (
+                (offer["tenor_days"] - min_tnr) / span_tnr
+                if span_tnr > 0
+                else 1.0
+            )
+            fee_score = (
+                1.0 - (offer["_fee_total"] - min_fee) / span_fee
+                if span_fee > 0
+                else 1.0
+            )
+
+            struct = offer.get("repayment_structure")
             if preferred_structure is None or struct == preferred_structure:
                 struct_score = 1.0
             else:
                 struct_score = STRUCTURE_MISMATCH
-
-            # 2. Tenor score: 60d / 120d = 0.50 (normalized against 120-day benchmark)
-            tenor_score = 0.50 if tenor_days <= 60 else min(1.0, tenor_days / 120.0)
-
-            # 3. Advance score: percentage cash advanced
-            if advance_rate >= 0.90:
-                adv_score = 1.00
-            elif advance_rate >= 0.80:
-                adv_score = 0.80
-            elif advance_rate >= 0.75:
-                adv_score = 0.75
-            else:
-                adv_score = 0.70
-
-            # 4. Speed score: settlement speed (same day = 1.00, 3d = 0.70, 1d = 0.60, 2d = 0.50)
-            if days_to_settle == 0:
-                speed_score = 1.00
-            elif days_to_settle == 3:
-                speed_score = 0.70
-            elif days_to_settle == 1:
-                speed_score = 0.60
-            else:
-                speed_score = 0.50
-
-            # 5. Fee score: low fees get high score
-            if fee_percent <= 0.0040:
-                fee_score = 1.00
-            elif fee_percent <= 0.0050:
-                fee_score = 0.80
-            else:
-                fee_score = 0.60
-
-            # 6. Cost score: low rate or low total rupees gets high score
-            if oid == "OFR002" or rate_annual <= 0.083:
-                cost_score = 0.80
-            elif oid == "OFR004":
-                cost_score = 0.75
-            elif oid == "OFR003":
-                cost_score = 0.60
-            elif oid == "OFR001":
-                cost_score = 0.60
-            else:
-                cost_score = max(0.0, 1.0 - rate_annual / 0.15)
 
             comp_scores = {
                 "cost": round(cost_score, 4),
@@ -229,12 +222,12 @@ def score_offers(
 
             # Weighted sum fit_score
             fit_score = (
-                raw_weights.get("cost", 0.0) * cost_score
-                + raw_weights.get("advance", 0.0) * adv_score
-                + raw_weights.get("speed", 0.0) * speed_score
-                + raw_weights.get("tenor", 0.0) * tenor_score
-                + raw_weights.get("fees", 0.0) * fee_score
-                + raw_weights.get("structure", 0.0) * struct_score
+                weights.get("cost", 0.0) * cost_score
+                + weights.get("advance", 0.0) * adv_score
+                + weights.get("speed", 0.0) * speed_score
+                + weights.get("tenor", 0.0) * tenor_score
+                + weights.get("fees", 0.0) * fee_score
+                + weights.get("structure", 0.0) * struct_score
             )
             offer["fit_score"] = round(max(0.0, min(1.0, fit_score)), 4)
     else:

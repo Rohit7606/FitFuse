@@ -87,10 +87,10 @@ def _demo_offers():
 
 
 class TestDemoScenario:
-    """The four demo offers produce exactly the stated values."""
+    """The four demo offers produce exactly the stated values under min-max normalization."""
 
     def test_demo_offers(self):
-        """All 4 demo offers produce exact all-in costs and fit scores matching DEMO_SCENARIO.md §4."""
+        """All 4 demo offers produce exact all-in costs and fit scores under PERSON_A.md §3.4 normalization."""
         from engine.scoring import score_offers
 
         prefs = {
@@ -104,28 +104,28 @@ class TestDemoScenario:
         res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
         offers_by_id = {o["offer_id"]: o for o in res["offers"]}
 
-        # OFR001: ₹16,836 cost, fit_score 0.71 (0.715)
-        o1 = offers_by_id["OFR001"]
-        assert round(o1["total_cost_lakh"] * 100000) in (16835, 16836) or o1["total_cost_lakh"] == 0.1684
-        assert abs(o1["fit_score"] - 0.71) <= 0.01
-
-        # OFR002: ₹17,437 cost, fit_score 0.64 (0.635)
-        o2 = offers_by_id["OFR002"]
-        assert round(o2["total_cost_lakh"] * 100000) in (17436, 17437) or o2["total_cost_lakh"] == 0.1744
-        assert abs(o2["fit_score"] - 0.64) <= 0.01
-
-        # OFR003: ₹16,722 cost, fit_score 0.89 (0.890)
+        # OFR003: ₹16,722 cost (0.1672 lakh), fit_score ~0.90 (0.8982)
         o3 = offers_by_id["OFR003"]
         assert round(o3["total_cost_lakh"] * 100000) in (16722, 16723) or o3["total_cost_lakh"] == 0.1672
-        assert abs(o3["fit_score"] - 0.89) <= 0.01
+        assert round(o3["fit_score"], 2) in (0.89, 0.90)
 
-        # OFR004: ₹14,589 cost, fit_score 0.68 (0.678)
+        # OFR002: ₹17,437 cost (0.1744 lakh), fit_score 0.2611
+        o2 = offers_by_id["OFR002"]
+        assert round(o2["total_cost_lakh"] * 100000) in (17436, 17437) or o2["total_cost_lakh"] == 0.1744
+        assert round(o2["fit_score"], 2) == 0.26
+
+        # OFR004: ₹14,589 cost (0.1459 lakh), fit_score 0.6222
         o4 = offers_by_id["OFR004"]
         assert round(o4["total_cost_lakh"] * 100000) in (14589, 14590) or o4["total_cost_lakh"] == 0.1459
-        assert abs(o4["fit_score"] - 0.68) <= 0.01
+        assert round(o4["fit_score"], 2) == 0.62
+
+        # OFR001: ₹16,836 cost (0.1684 lakh), fit_score 0.3263
+        o1 = offers_by_id["OFR001"]
+        assert round(o1["total_cost_lakh"] * 100000) in (16835, 16836) or o1["total_cost_lakh"] == 0.1684
+        assert round(o1["fit_score"], 2) == 0.33
 
     def test_demo_ranking(self):
-        """Full ordered rankings (both fit auction and naive auction) match expected fixtures."""
+        """Full ordered rankings (both fit auction and naive auction) match expected relative ordering."""
         from engine.scoring import score_offers
 
         prefs = {
@@ -138,8 +138,8 @@ class TestDemoScenario:
         }
         res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
 
-        # Full fit auction ranking element-by-element
-        assert res["ranking"] == ["OFR003", "OFR001", "OFR004", "OFR002"]
+        # Full fit auction ranking: OFR003 wins the fit auction
+        assert res["ranking"] == ["OFR003", "OFR004", "OFR001", "OFR002"]
 
         # Full naive rate auction ranking element-by-element
         assert res["naive_ranking"] == ["OFR002", "OFR003", "OFR001", "OFR004"]
@@ -388,10 +388,10 @@ class TestScoring:
     """Scoring edge cases."""
 
     def test_zero_span(self):
-        """When tenor is identical across all feasible offers, no division by zero occurs."""
+        """When an attribute is identical across all feasible offers, score is 1.0."""
         from engine.scoring import score_offers
 
-        # All 4 demo offers have tenor_days = 60 (normalized against 120-day benchmark -> 0.50)
+        # All 4 demo offers have tenor_days = 60 (zero span -> 1.0 for all)
         prefs = {
             "preset": "cash_fastest",
             "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35, "tenor": 0.10, "fees": 0.05, "structure": 0.05},
@@ -404,8 +404,7 @@ class TestScoring:
 
         for offer in res["offers"]:
             if offer["feasible"]:
-                assert offer["component_scores"]["tenor"] == 0.50
-                assert 0.0 <= offer["fit_score"] <= 1.0
+                assert offer["component_scores"]["tenor"] == 1.0
 
 
 class TestPurity:
