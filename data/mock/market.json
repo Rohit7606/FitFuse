@@ -1,6 +1,6 @@
 {
   "meta": {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "generated_at": "2026-08-28T00:00:00Z",
     "generator": "mockgen",
     "seed": 42,
@@ -4788,7 +4788,8 @@
       "risk_appetite": 0.1,
       "min_ticket_lakh": 1.0,
       "max_ticket_lakh": 500.0,
-      "cost_of_funds": 0.05,
+      "cost_of_funds": 0.045,
+      "target_margin": 0.0211,
       "target_return": 0.08,
       "sector_limits": {
         "auto_components": 0.25,
@@ -4819,7 +4820,8 @@
       "risk_appetite": 0.15,
       "min_ticket_lakh": 0.5,
       "max_ticket_lakh": 200.0,
-      "cost_of_funds": 0.08,
+      "cost_of_funds": 0.055,
+      "target_margin": 0.0031,
       "target_return": 0.12,
       "sector_limits": {
         "auto_components": 0.3,
@@ -4849,7 +4851,8 @@
       "risk_appetite": 0.2,
       "min_ticket_lakh": 1.0,
       "max_ticket_lakh": 200.0,
-      "cost_of_funds": 0.06,
+      "cost_of_funds": 0.05,
+      "target_margin": 0.0121,
       "target_return": 0.15,
       "sector_limits": {
         "auto_components": 0.2,
@@ -4880,7 +4883,8 @@
       "risk_appetite": 0.25,
       "min_ticket_lakh": 0.1,
       "max_ticket_lakh": 100.0,
-      "cost_of_funds": 0.07,
+      "cost_of_funds": 0.052,
+      "target_margin": 0.0181,
       "target_return": 0.14,
       "sector_limits": {
         "auto_components": 0.35,
@@ -4910,7 +4914,8 @@
       "risk_appetite": 0.08,
       "min_ticket_lakh": 0.5,
       "max_ticket_lakh": 8.0,
-      "cost_of_funds": 0.05,
+      "cost_of_funds": 0.048,
+      "target_margin": 0.018,
       "target_return": 0.07,
       "sector_limits": {
         "auto_components": 0.2,
@@ -4941,7 +4946,8 @@
       "risk_appetite": 0.015,
       "min_ticket_lakh": 5.0,
       "max_ticket_lakh": 300.0,
-      "cost_of_funds": 0.04,
+      "cost_of_funds": 0.042,
+      "target_margin": 0.015,
       "target_return": 0.1,
       "sector_limits": {
         "auto_components": 0.25,

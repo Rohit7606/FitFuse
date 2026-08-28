@@ -118,7 +118,12 @@ URGENCY_ADVANCE_BOOST = 1.2  # Advance weight boost when supplier.urgent is true
 
 RECOVERY_RATE = 0.40           # Expected recovery in default (40%)
 CAPITAL_CHARGE_RATE = 0.30     # Capital charge multiplier on pd_upper
-SHADE_K = 8.0                  # Winner's-curse shading constant
+# Winner's-curse shading: shade = SHADE_K * uncertainty * log(1 + competitors).
+# Uncertainty is a probability (~0.007 on INV001), so K scales a very small
+# number up into a rate. At K=8.0 the shade was 776 bp — larger than the entire
+# bid — and no provider could reach the DEMO_SCENARIO.md §4 rates. K=0.30 gives
+# ~29 bp against three rivals, which is a plausible adverse-selection premium.
+SHADE_K = 0.30
 EXPLORATION_BONUS = 0.10       # UCB-style exploration bonus for segment learning
 
 # ---------------------------------------------------------------------------

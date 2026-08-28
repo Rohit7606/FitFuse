@@ -1,6 +1,6 @@
 # SCHEMA.md — FitFuse Data Contract
 
-**Schema version: 1.0**
+**Schema version: 1.1**
 
 This file is the boundary between all three tracks. It has **no single owner** — changes require both other team members to be named on the PR. See `AGENTS.md` §4.3.
 
@@ -125,7 +125,7 @@ The complete file:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "generated_at": "2026-08-28T00:00:00Z",
   "generator": "mockgen",
   "seed": 42,
@@ -280,6 +280,7 @@ The heart of the product. This is what makes the market a fit auction rather tha
   "min_ticket_lakh": 5.00,
   "max_ticket_lakh": 250.00,
   "cost_of_funds": 0.062,
+  "target_margin": 0.0121,
   "target_return": 0.105,
   "sector_limits": { "auto_components": 0.20, "textiles": 0.30 },
   "buyer_limit": 0.15,
@@ -299,7 +300,10 @@ The heart of the product. This is what makes the market a fit auction rather tha
 | `available_liquidity_lakh` | float | The budget. Depletes on funding, replenishes on settlement |
 | `risk_appetite` | float | `0.0`–`1.0`. Maximum `pd_upper` this provider will accept |
 | `cost_of_funds` | float | Annual fraction. **The floor** — an agent may never bid below it |
-| `target_return` | float | Annual fraction. Required risk-adjusted return |
+| `target_margin` | float | Annual fraction. The spread this provider adds when **pricing** a bid — the last term of `required_rate` in `PERSON_B.md` §3.4 |
+| `target_return` | float | Annual fraction. Required risk-adjusted return, used as an **eligibility screen** (`PERSON_A.md` §3.3 rule 7) |
+
+**`target_margin` and `target_return` are not the same thing and must not be conflated.** `target_return` is a hurdle that decides *whether* a provider looks at a deal at all; `target_margin` is the profit spread it builds into the rate once it has decided to bid. A provider can clear its hurdle and still price thinly, which is exactly what Arcline does in the demo — it takes almost no spread on the rate and earns on fees and a low advance instead.
 | `sector_limits` | object | Fraction of `total_portfolio_lakh` allowed per sector |
 | `buyer_limit` | float | Fraction of `total_portfolio_lakh` allowed against any single buyer |
 | `current_exposure` | object | Absolute ₹ lakh already committed, by sector and by buyer |
@@ -339,7 +343,7 @@ Past outcomes, used by the learning loop as its starting memory.
   "verification": { ...Verification... },
   "risk": { ...RiskProfile... },
   "eligibility": [ ...ProviderEligibility... ],
-  "meta": { "schema_version": "1.0", "engine_version": "1.0" }
+  "meta": { "schema_version": "1.1", "engine_version": "1.0" }
 }
 ```
 
@@ -737,3 +741,4 @@ If a mock does not validate, it is not a mock — it is a future integration bug
 | Version | Change |
 |---|---|
 | 1.0 | Initial contract. Monetary unit fixed as ₹ lakh. `pd_upper` designated the eligibility screen rather than `pd`. `naive_ranking` and `naive_mode` added as first-class contract fields to support the counterfactual. `max_fundable_lakh` added to `ProviderEligibility` to enable syndication |
+| 1.1 | Added optional `Provider.target_margin` — the pricing spread `PERSON_B.md` §3.4 requires, which had no field in the contract. Documented it as distinct from `target_return`, which is an eligibility hurdle rather than a pricing term. Additive only; no field renamed or removed. |
