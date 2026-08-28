@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 
-from engine.assess import UnknownEntityError
+from engine.errors import UnknownEntityError
 
 
 def _is_hex64(s: str) -> bool:

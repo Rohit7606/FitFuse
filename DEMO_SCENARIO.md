@@ -65,12 +65,12 @@ Both are real offers. Only one is right for this supplier.
 | Days to settle | 2 | **0 — same day** |
 | Fee | 0.8% | **0.4%** |
 | Cash to Sharda | ₹7.00 lakh | **₹9.00 lakh** |
-| All-in cost | ₹17,437 | **₹16,722 — actually cheaper** |
-| `fit_score` | 0.64 | **0.89** |
+| All-in cost | ₹17,436 | **₹16,723 — actually cheaper** |
+| `fit_score` | 0.26 | **0.90** |
 
 A judge who asks *"why isn't the cheapest rate winning?"* gets the entire thesis in one answer:
 
-> **The lowest rate is not the lowest cost, and cost is not the only thing that matters. Arcline advances less money, more slowly, and charges higher fees — so it costs ₹715 more in rupees while delivering ₹2 lakh less cash.**
+> **The lowest rate is not the lowest cost, and cost is not the only thing that matters. Arcline advances less money, more slowly, and charges higher fees — so it costs ₹713 more in rupees while delivering ₹2 lakh less cash.**
 
 Keep this contrast intact through any tuning. It is the most defensible thing in the demo.
 
@@ -90,17 +90,17 @@ total_cost_lakh = amount × advance_rate × rate_annual × (tenor_days / 365)
 
 | Offer | Provider | Rate | Advance | Settles | Fee | Structure | Cash now | All-in cost | `fit_score` |
 |---|---|---|---|---|---|---|---|---|---|
-| `OFR001` | Meridian Bank | 0.0900 | 0.80 | 3 d | 0.0050 | bullet | ₹8.00 L | ₹16,836 | 0.71 |
-| `OFR002` | Arcline Capital | **0.0820** | 0.70 | 2 d | 0.0080 | bullet | ₹7.00 L | ₹17,437 | 0.64 |
-| `OFR003` | Kestrel Credit Fund | 0.0860 | **0.90** | **0 d** | 0.0040 | bullet | ₹9.00 L | ₹16,722 | **0.89** |
-| `OFR004` | Nimbus Finserv | 0.0940 | 0.75 | 1 d | 0.0030 | instalment | ₹7.50 L | **₹14,589** | 0.68 |
+| `OFR001` | Meridian Bank | 0.0900 | 0.80 | 3 d | 0.0050 | bullet | ₹8.00 L | ₹16,836 | 0.33 |
+| `OFR002` | Arcline Capital | **0.0820** | 0.70 | 2 d | 0.0080 | bullet | ₹7.00 L | ₹17,436 | 0.26 |
+| `OFR003` | Kestrel Credit Fund | 0.0860 | **0.90** | **0 d** | 0.0040 | bullet | ₹9.00 L | ₹16,723 | **0.90** |
+| `OFR004` | Nimbus Finserv | 0.0940 | 0.75 | 1 d | 0.0030 | instalment | ₹7.50 L | **₹14,589** | 0.62 |
 
 **Worked check for `OFR003`** — Person A should reproduce this exactly:
 
 ```
 10.00 × 0.90 × 0.0860 × (60/365) = 0.12722
 10.00 × 0.0040                   = 0.04000
-                          total  = 0.16722 lakh  →  ₹16,722
+                          total  = 0.16723 lakh  →  ₹16,723
 ```
 
 **Two deliberate traps in this table**, both of which make the demo stronger:
@@ -148,9 +148,9 @@ Indicative, from the mock market at seed `42`. Person A owns the exact values; t
 | Blended rate | 0.0873 |
 | Match state | `matched` → `funded` |
 
-**The naive counterfactual:** `OFR002` alone. ₹7.00 lakh, 2 days, ₹17,437.
+**The naive counterfactual:** `OFR002` alone. ₹7.00 lakh, 2 days, ₹17,436.
 
-> **₹2.00 lakh more cash, two days sooner, for ₹715 less.** Same invoice, same four lenders, different market.
+> **₹2.00 lakh more cash, two days sooner, for ₹713 less.** Same invoice, same four lenders, different market.
 
 **After settlement (`late`, 5 days):**
 
@@ -188,7 +188,7 @@ Step 8's second half. Toggle `naive_mode: true` and let the market rank by rate 
 - `OFR002` rises to the top on 8.2%
 - Advance drops to 70% — **₹7.00 lakh instead of ₹9.00 lakh**
 - Settlement slows to 2 days
-- All-in cost *rises* to ₹17,437
+- All-in cost *rises* to ₹17,436
 
 The supplier who needed cash by Friday gets ₹2 lakh less, two days later, for more money — from the same four lenders, on the same invoice.
 
@@ -233,7 +233,7 @@ The supplier who needed cash by Friday gets ₹2 lakh less, two days later, for 
     "PRV006": "risk_appetite"
   },
 
-  "expected_ranking":       ["OFR003", "OFR001", "OFR004", "OFR002"],
+  "expected_ranking":       ["OFR003", "OFR004", "OFR001", "OFR002"],
   "expected_naive_ranking": ["OFR002", "OFR003", "OFR001", "OFR004"],
   "expected_cheapest_preset_winner": "OFR004",
 
@@ -290,3 +290,4 @@ The financing terms are shaped to be plausible for Indian MSME invoice discounti
 | Version | Change |
 |---|---|
 | 1.0 | Initial. Six providers, four offers, eight-step flow. `OFR003`-vs-`OFR002` established as the core argument; `OFR004` added as the cheapest-in-rupees decoy to pre-empt the "you just want lowest total cost" objection |
+| 1.1 | Fit scores and all-in costs replaced with the values `engine/scoring.py` actually produces. The originals were written by hand before the scorer existed: the costs were rounded mid-calculation (against `AGENTS.md` §3.1) and the fit scores did not come from the documented formula at all. `expected_ranking` corrected to `OFR003, OFR004, OFR001, OFR002` — under `cash_fastest`, `OFR004` genuinely outscores `OFR001` on speed, cost and fees, losing only on advance and structure. Every load-bearing claim is unchanged: `OFR003` still wins on fit, `OFR002` still wins on rate, `OFR004` still wins under `cheapest`, and `fit_beats_rate` is still true. |

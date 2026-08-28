@@ -27,9 +27,15 @@ import pytest
 class TestDeterminism:
     """assess and score_offers run twice on the same input → byte-identical JSON."""
 
-    @pytest.mark.skip(reason="Person A: implement after engine is built")
     def test_determinism(self):
-        pass
+        """Same input twice must give byte-identical JSON — AGENTS.md §3.1."""
+        import json
+
+        from engine.assess import assess
+        market = _market()
+        first = json.dumps(assess("INV001", market), sort_keys=True)
+        second = json.dumps(assess("INV001", market), sort_keys=True)
+        assert first == second
 
 
 class TestSchemaValid:
@@ -52,9 +58,31 @@ class TestSchemaValid:
         with pytest.raises(jsonschema.ValidationError):
             validate_market({"suppliers": "not-an-array"}, schema_path)
 
-    @pytest.mark.skip(reason="Person A: implement after assess")
     def test_assess_validates(self):
-        pass
+        """assess() output validates against the Assessment definition."""
+        import json
+        import os
+
+        import jsonschema
+
+        from engine.assess import assess
+        schema_path = os.path.join(os.path.dirname(__file__), "..", "..", "schema.json")
+        with open(schema_path, encoding="utf-8") as f:
+            schema = json.load(f)
+        for invoice_id in ("INV001", "INV002", "INV014"):
+            jsonschema.validate(
+                instance=assess(invoice_id, _market()),
+                schema={**schema, "$ref": "#/definitions/Assessment"},
+            )
+
+
+def _market():
+    import json
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "..",
+                        "data", "mock", "market.json")
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def _demo_offers():
@@ -104,24 +132,27 @@ class TestDemoScenario:
         res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
         offers_by_id = {o["offer_id"]: o for o in res["offers"]}
 
-        # OFR003: ₹16,722 cost (0.1672 lakh), fit_score ~0.90 (0.8982)
+        # OFR003: ₹16,723 all-in, fit 0.8980. Exact, not a tolerant range —
+        # a range here would silently accept a return to mid-calculation
+        # rounding, which AGENTS.md §3.1 forbids and which quantises the
+        # cost to the nearest ₹10.
         o3 = offers_by_id["OFR003"]
-        assert round(o3["total_cost_lakh"] * 100000) in (16722, 16723) or o3["total_cost_lakh"] == 0.1672
-        assert round(o3["fit_score"], 2) in (0.89, 0.90)
+        assert round(o3["total_cost_lakh"] * 100000) == 16723
+        assert round(o3["fit_score"], 2) == 0.90
 
-        # OFR002: ₹17,437 cost (0.1744 lakh), fit_score 0.2611
+        # OFR002: ₹17,436 all-in, fit 0.2611
         o2 = offers_by_id["OFR002"]
-        assert round(o2["total_cost_lakh"] * 100000) in (17436, 17437) or o2["total_cost_lakh"] == 0.1744
+        assert round(o2["total_cost_lakh"] * 100000) == 17436
         assert round(o2["fit_score"], 2) == 0.26
 
-        # OFR004: ₹14,589 cost (0.1459 lakh), fit_score 0.6222
+        # OFR004: ₹14,589 all-in, fit 0.6222
         o4 = offers_by_id["OFR004"]
-        assert round(o4["total_cost_lakh"] * 100000) in (14589, 14590) or o4["total_cost_lakh"] == 0.1459
+        assert round(o4["total_cost_lakh"] * 100000) == 14589
         assert round(o4["fit_score"], 2) == 0.62
 
-        # OFR001: ₹16,836 cost (0.1684 lakh), fit_score 0.3263
+        # OFR001: ₹16,836 all-in, fit 0.3263
         o1 = offers_by_id["OFR001"]
-        assert round(o1["total_cost_lakh"] * 100000) in (16835, 16836) or o1["total_cost_lakh"] == 0.1684
+        assert round(o1["total_cost_lakh"] * 100000) == 16836
         assert round(o1["fit_score"], 2) == 0.33
 
     def test_demo_ranking(self):
@@ -138,11 +169,19 @@ class TestDemoScenario:
         }
         res = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
 
-        # Full fit auction ranking: OFR003 wins the fit auction
-        assert res["ranking"] == ["OFR003", "OFR004", "OFR001", "OFR002"]
+        # Read the expectations from the committed fixture rather than
+        # restating them here. DEMO_SCENARIO.md §8 makes the fixture the
+        # authority, and a hardcoded copy can drift from it silently — which
+        # is exactly what happened before this test was rewritten.
+        import json
+        import os
+        fixture_path = os.path.join(os.path.dirname(__file__), "..", "..",
+                                    "data", "fixtures", "demo_scenario.json")
+        with open(fixture_path, encoding="utf-8") as f:
+            fixture = json.load(f)
 
-        # Full naive rate auction ranking element-by-element
-        assert res["naive_ranking"] == ["OFR002", "OFR003", "OFR001", "OFR004"]
+        assert res["ranking"] == fixture["expected_ranking"]
+        assert res["naive_ranking"] == fixture["expected_naive_ranking"]
 
         # Summary flags
         assert res["summary"]["best_fit_offer_id"] == "OFR003"
@@ -315,9 +354,38 @@ class TestRisk:
         # null should produce a higher pd than explicit zero
         assert r_null["pd"] > r_zero["pd"]
 
-    @pytest.mark.skip(reason="Person A: implement after risk")
     def test_scores_bounded(self):
-        pass
+        """No pd or fit_score outside [0, 1] anywhere in the market.
+
+        Swept across every invoice rather than the demo one, because a bound
+        violation would most likely show up on an edge-case supplier or buyer
+        that the demo path never touches.
+        """
+        from engine.assess import assess, score_offers
+        market = _market()
+        prefs = {
+            "preset": "cash_fastest",
+            "weights": {"cost": 0.15, "advance": 0.30, "speed": 0.35,
+                        "tenor": 0.10, "fees": 0.05, "structure": 0.05},
+            "min_advance_rate": 0.70, "max_days_to_cash": 5,
+            "preferred_structure": "bullet", "urgent": True,
+        }
+        for invoice in market["invoices"]:
+            result = assess(invoice["invoice_id"], market)
+            risk = result["risk"]
+            for field in ("pd", "pd_lower", "pd_upper"):
+                assert 0.0 <= risk[field] <= 1.0, (
+                    f"{invoice['invoice_id']} {field} = {risk[field]}"
+                )
+            assert risk["pd_lower"] <= risk["pd"] <= risk["pd_upper"]
+            for entry in result["eligibility"]:
+                assert entry["max_fundable_lakh"] >= 0.0
+
+        scored = score_offers(_demo_offers(), {"invoice_id": "INV001"}, prefs)
+        for offer in scored["offers"]:
+            assert 0.0 <= offer["fit_score"] <= 1.0
+            for name, value in offer["component_scores"].items():
+                assert 0.0 <= value <= 1.0, f"{offer['offer_id']} {name} = {value}"
 
 
 class TestEligibility:
@@ -410,6 +478,27 @@ class TestScoring:
 class TestPurity:
     """No side effects."""
 
-    @pytest.mark.skip(reason="Person A: implement after assess")
     def test_no_input_mutation(self):
-        pass
+        """The market dict must be unchanged after assess — the API is stateless."""
+        import copy
+
+        from engine.assess import assess
+        market = _market()
+        before = copy.deepcopy(market)
+        assess("INV001", market)
+        assert market == before
+
+    def test_unknown_invoice_raises(self):
+        """A typo'd id is a bad request, so B can map it to a 400 not a 500."""
+        from engine.assess import UnknownEntityError, assess
+        with pytest.raises(UnknownEntityError) as exc:
+            assess("INV999", _market())
+        assert exc.value.entity_id == "INV999"
+
+    def test_rejected_invoice_has_no_offers(self):
+        """A rejected invoice produces no risk score and no offers — §3.1."""
+        from engine.assess import assess
+        result = assess("INV002", _market())
+        assert result["verification"]["status"] == "rejected"
+        assert result["eligibility"] == []
+        assert result["meta"]["assessed"] is False

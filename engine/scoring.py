@@ -130,7 +130,10 @@ def score_offers(
         financing_cost = amount_lakh * advance_rate * rate_annual * (tenor_days / 365.0)
         fee_cost = amount_lakh * fee_percent + fee_flat_lakh
         total_cost_lakh = financing_cost + fee_cost
-        offer["total_cost_lakh"] = round(total_cost_lakh, 4)
+        # 5dp, not 4 — a lakh is ₹100,000, so 4dp quantises the all-in cost to
+        # ₹10 and turns the demo's ₹16,723 into ₹16,720. Person A ruled the
+        # unrounded end-of-calculation figure canonical, per AGENTS.md §3.1.
+        offer["total_cost_lakh"] = round(total_cost_lakh, 5)
         offer["_fee_total"] = fee_cost
 
         # Check hard constraints
