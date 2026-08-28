@@ -15,60 +15,154 @@ Test list from PERSON_B.md §7:
 Owner: Person B
 """
 
+import json
+import os
+
+import jsonschema
 import pytest
+from fastapi.testclient import TestClient
+
+from api.main import app
+
+client = TestClient(app)
+
+_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "schema.json")
+with open(_SCHEMA_PATH, encoding="utf-8") as _f:
+    SCHEMA = json.load(_f)
+
+BASELINE = {"scenario": {"preference_overrides": [], "liquidity_overrides": [],
+                         "settlement_events": [], "naive_mode": False}}
+
+
+def validates(instance, definition):
+    """Validate against one definition in schema.json.
+
+    The document is definitions-only, so a bare validate() against its root
+    accepts anything — the $ref is what makes this a real check.
+    """
+    jsonschema.validate(
+        instance=instance,
+        schema={**SCHEMA, "$ref": f"#/definitions/{definition}"},
+    )
 
 
 class TestEndpointShapes:
     """All five endpoints return contract-valid shapes."""
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_market_shape(self):
-        pass
+        r = client.get("/api/market")
+        assert r.status_code == 200
+        body = r.json()
+        for key in ("meta", "suppliers", "buyers", "invoices", "providers"):
+            assert key in body, f"/api/market missing {key}"
+        assert len(body["providers"]) == 6
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_assess_shape(self):
-        pass
+        r = client.post("/api/assess", json={"invoice_id": "INV001", **BASELINE})
+        assert r.status_code == 200
+        validates(r.json(), "Assessment")
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_offers_shape(self):
-        pass
+        r = client.post("/api/offers", json={"invoice_id": "INV001", **BASELINE})
+        assert r.status_code == 200
+        body = r.json()
+        validates(body["assessment"], "Assessment")
+        for offer in body["offers"]:
+            validates(offer, "ScoredOffer")
+        # Always returned, so the frontend can toggle the counterfactual with
+        # no second request — PERSON_B.md §4.3.
+        assert body["naive_ranking"], "naive_ranking must be present"
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_clear_shape(self):
-        pass
+        r = client.post("/api/clear", json={"invoice_ids": ["INV001"], **BASELINE})
+        assert r.status_code == 200
+        body = r.json()
+        for match in body["matches"]:
+            validates(match, "Match")
+        assert body["summary"]["stable"] is True
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_settle_shape(self):
-        pass
+        r = client.post("/api/settle", json={"match_id": "MCH001", "outcome": "late",
+                                             "days_late": 5, **BASELINE})
+        assert r.status_code == 200
+        body = r.json()
+        validates(body["before"]["match"], "Match")
+        validates(body["after"]["match"], "Match")
+        validates(body["delta"], "LearningDelta")
+
+    def test_syndicated_allocations_sum(self):
+        """Match.allocations must sum to total_advance_lakh — SCHEMA.md §6."""
+        body = client.post("/api/clear",
+                           json={"invoice_ids": ["INV001"], **BASELINE}).json()
+        for match in body["matches"]:
+            total = round(sum(a["amount_lakh"] for a in match["allocations"]), 2)
+            assert total == match["total_advance_lakh"]
 
 
 class TestErrorHandling:
     """Error responses follow SCHEMA.md §5.7."""
 
-    @pytest.mark.skip(reason="Person B: implement after error handlers")
-    def test_unknown_id_400(self):
-        pass
+    @pytest.mark.parametrize("endpoint,payload", [
+        ("/api/assess", {"invoice_id": "INV999"}),
+        ("/api/offers", {"invoice_id": "INV999"}),
+        ("/api/clear", {"invoice_ids": ["INV999"]}),
+    ])
+    def test_unknown_id_400(self, endpoint, payload):
+        r = client.post(endpoint, json={**payload, **BASELINE})
+        assert r.status_code == 400, "a typo'd ID is a bad request, not a 500"
+        body = r.json()
+        assert body["error"] == "unknown_entity"
+        assert "INV999" in body["detail"], "the error must name the offending ID"
 
-    @pytest.mark.skip(reason="Person B: implement after error handlers")
     def test_bad_weights_400(self):
-        pass
+        bad = {"preference_overrides": [{"supplier_id": "SUP001", "urgent": False,
+                                         "weights": {"cost": 0.15, "advance": 0.30,
+                                                     "speed": 0.20, "tenor": 0.10,
+                                                     "fees": 0.07, "structure": 0.05}}],
+               "liquidity_overrides": [], "settlement_events": [], "naive_mode": False}
+        r = client.post("/api/offers", json={"invoice_id": "INV001", "scenario": bad})
+        assert r.status_code == 400
+        body = r.json()
+        assert body["error"] == "invalid_weights"
+        assert "0.87" in body["detail"]
 
-    @pytest.mark.skip(reason="Person B: implement after error handlers")
     def test_malformed_422(self):
-        pass
+        r = client.post("/api/assess", json={"not_a_field": "garbage"})
+        assert r.status_code == 422
+
+    def test_illegal_transition_400(self):
+        r = client.post("/api/settle", json={"match_id": "MCH001",
+                                             "outcome": "funded", **BASELINE})
+        assert r.status_code == 400
+        assert r.json()["error"] == "illegal_transition"
+
+    def test_no_500s_on_bad_input(self):
+        """Never a 500 for a bad request — SCHEMA.md §5.7."""
+        for payload in ({"invoice_id": ""}, {"invoice_id": "!!!"},
+                        {"invoice_id": "SUP001"}):
+            r = client.post("/api/assess", json={**payload, **BASELINE})
+            assert r.status_code < 500, f"{payload} produced a {r.status_code}"
 
 
 class TestStateless:
-    """No server-side state."""
+    """No server-side state — AGENTS.md §3.4."""
 
-    @pytest.mark.skip(reason="Person B: implement after endpoints")
     def test_stateless(self):
-        pass
+        req = {"invoice_id": "INV001", **BASELINE}
+        first = client.post("/api/offers", json=req).json()
+        # A settle call in between must not affect a later assess/offers call.
+        client.post("/api/settle", json={"match_id": "MCH001", "outcome": "late",
+                                         "days_late": 5, **BASELINE})
+        second = client.post("/api/offers", json=req).json()
+        assert first == second, "a settle call leaked state into a later request"
 
 
 class TestProductThesis:
     """The one assertion that the product still makes its point."""
 
-    @pytest.mark.skip(reason="Person B: implement after full pipeline")
     def test_fit_beats_rate(self):
-        pass
+        body = client.post("/api/offers",
+                           json={"invoice_id": "INV001", **BASELINE}).json()
+        assert body["summary"]["fit_beats_rate"] is True
+        assert body["ranking"][0] == "OFR003", "the fit winner is Kestrel"
+        assert body["naive_ranking"][0] == "OFR002", "the lowest rate is Arcline"
