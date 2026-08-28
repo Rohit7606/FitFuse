@@ -365,14 +365,6 @@ class TestSyndication:
         assert m["total_advance_lakh"] == 9.00
         assert len(m["allocations"]) == 2
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Fixture drift, needs Person A and Person C. expected_match names "
-               "PRV001 as the syndication partner, which was true under the "
-               "hand-written fit scores. With the real scorer OFR004 ranks second, "
-               "so PRV004 fills the remainder. The fixture now contradicts its own "
-               "expected_ranking; one of the two has to move.",
-    )
     def test_matches_committed_fixture(self, demo_clearing):
         import json
         import os
@@ -705,14 +697,6 @@ class TestLearning:
         assert secondary in repriced
         assert repriced[secondary]["pd_after"] > repriced[secondary]["pd_before"]
 
-    @pytest.mark.xfail(strict=True, reason=(
-        "DEMO_SCENARIO.md §5 says INV014 crosses prime to standard on a 5-day "
-        "delay. With the committed risk calibration it does not: INV014's "
-        "pd_upper moves 0.0221 to 0.0244 against a 0.030 prime threshold. The "
-        "invoice that does cross is INV001 itself. The fixture's numbers "
-        "(pd 0.0210 to 0.0265) are INV001's, copied onto INV014's row. Needs a "
-        "deliberate fixture update with A and C named — DEMO_SCENARIO.md is "
-        "shared (AGENTS.md 2.1)."))
     def test_secondary_invoice_crosses_a_band(self, demo_settlement):
         expected = _fixture()["expected_after_learning"]
         secondary = _fixture()["secondary_invoice_id"]

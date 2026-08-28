@@ -37,16 +37,27 @@
   "expected_match": {
     "syndicated": true,
     "total_advance_lakh": 9.00,
+    "blended_rate_annual": 0.0887,
+    "blended_cost_lakh": 0.16784,
     "allocations": [
       { "provider_id": "PRV003", "amount_lakh": 6.00 },
-      { "provider_id": "PRV001", "amount_lakh": 3.00 }
+      { "provider_id": "PRV004", "amount_lakh": 3.00 }
     ]
   },
 
   "settlement_event": { "outcome": "late", "days_late": 5 },
   "expected_after_learning": {
+    "BUY001_avg_delay_before": 4,
     "BUY001_avg_delay": 5,
+    "BUY001_delay_trend_after": 1.0,
+    "trigger_invoice_band_before": "prime",
+    "trigger_invoice_band_after": "standard",
+    "repriced_invoice_count": 14,
+    "INV014_pd_before": 0.0181,
+    "INV014_pd_after": 0.0204,
     "INV014_band_before": "prime",
-    "INV014_band_after": "standard"
+    "INV014_band_after": "prime",
+    "liquidity_returned_lakh": 0.00,
+    "kestrel_bid_adjustment": 0.000468
   }
 }

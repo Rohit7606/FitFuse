@@ -32,10 +32,10 @@ Six providers. Four eligible, two excluded — and the exclusions are the point.
 
 | ID | Name | Type | Character | Role |
 |---|---|---|---|---|
-| `PRV001` | Meridian Bank | bank | Conservative. Cheap-ish, modest advance, 3-day settlement | Offers. **Takes the syndication remainder** |
+| `PRV001` | Meridian Bank | bank | Conservative. Cheap-ish, modest advance, 3-day settlement | Offers. Ranks third on fit, so it does not take the remainder |
 | `PRV002` | Arcline Capital | nbfc | **The lowest headline rate — 8.2%.** Low advance, high fees | The trap. What a naive market would pick |
 | `PRV003` | Kestrel Credit Fund | fund | Opportunistic. Highest advance, same-day, low fees | **The fit winner — but capacity-limited** |
-| `PRV004` | Nimbus Finserv | fintech | Fast and low-fee, but prices high and advances modestly | Offers. Shows cheapest-in-rupees ≠ best fit |
+| `PRV004` | Nimbus Finserv | fintech | Fast and low-fee, but prices high and advances modestly | Offers. Cheapest in rupees, ranks second on fit — **takes the syndication remainder** |
 | `PRV005` | Coastal Cooperative Bank | bank | ₹8.00 lakh maximum ticket | **Excluded — ticket size** |
 | `PRV006` | Sentinel Asset Managers | fund | Risk appetite `0.015`, below this invoice's `pd_upper` | **Excluded — risk appetite** |
 
@@ -47,7 +47,7 @@ SUP001 Sharda ──invoice INV001──▶ BUY001 Vireon
        ▲
        │ cash now
        │
-  PRV003 Kestrel (₹6.00 lakh)  +  PRV001 Meridian (₹3.00 lakh)
+  PRV003 Kestrel (₹6.00 lakh)  +  PRV004 Nimbus (₹3.00 lakh)
 ```
 
 Read the invoice arrow as "is owed by." Goods already flowed to Vireon; money flows back in 60 days. The financiers stand in for Vireon in the meantime — **which is why Vireon's credit grade, not Sharda's, drives the risk score.**
@@ -143,24 +143,28 @@ Indicative, from the mock market at seed `42`. Person A owns the exact values; t
 |---|---|
 | Winning offer by fit | `OFR003` (Kestrel) |
 | Kestrel's `max_fundable_lakh` | **₹6.00 lakh** — sector limit binds at 94% of a 20% cap |
-| Syndication partner | `PRV001` Meridian, ₹3.00 lakh |
+| Syndication partner | `PRV004` Nimbus, ₹3.00 lakh — the next offer by fit |
 | Total advance | **₹9.00 lakh** |
-| Blended rate | 0.0873 |
+| Blended rate | 0.0887 |
+| Blended all-in cost | ₹16,784 |
 | Match state | `matched` → `funded` |
 
 **The naive counterfactual:** `OFR002` alone. ₹7.00 lakh, 2 days, ₹17,436.
 
-> **₹2.00 lakh more cash, two days sooner, for ₹713 less.** Same invoice, same four lenders, different market.
+> **₹2.00 lakh more cash, two days sooner, for ₹652 less.** Same invoice, same four lenders, different market.
 
 **After settlement (`late`, 5 days):**
 
 | Metric | Value |
 |---|---|
 | `BUY001` average delay | 4 d → 5 d |
-| `INV014` `pd` | 0.0210 → 0.0265 |
-| `INV014` band | `prime` → `standard` |
-| Kestrel's rate on this segment | +15 bps |
-| Liquidity returned to Kestrel | ₹6.00 lakh |
+| `BUY001` payment-delay trend | 0.0 → 1.0 |
+| `INV001` `pd` | 0.0210 → 0.0236 |
+| `INV001` band | **`prime` → `standard`** |
+| Other open invoices on `BUY001` repriced | **14** |
+| `INV014` `pd` | 0.0181 → 0.0204 — stays `prime` |
+| Kestrel's next bid on `auto_components/AA/60d` | +4.7 bps |
+| Liquidity returned to Kestrel | **none** — the buyer has not paid |
 
 ---
 
@@ -174,8 +178,8 @@ Indicative, from the mock market at seed `42`. Person A owns the exact values; t
 | 4 | Six providers. Four light up. **Two grey out with reasons on screen** | "Coastal can't write a ticket this size. Sentinel's risk appetite is below this invoice. A real market knows that before it asks anyone to bid." | C |
 | 5 | Four offers appear, visibly different. Lowest rate flagged on `OFR002` | "Four offers. The cheapest rate is 8.2%. Watch what happens." | C |
 | 6 | **The slider moment.** Drag speed and advance up → ranking reorders, `OFR003` to the top. Reason text reads out | "Sharda needs cash, not a discount. Now the 8.6% offer wins — and it actually costs less in rupees than the 8.2% one." | C |
-| 7 | Clearing runs. Kestrel caps at ₹6 lakh, Meridian takes ₹3 lakh. **`matched` → `funded`** | "Kestrel wants all of it. Its auto-components book won't allow it. So the market splits the deal — and Sharda still gets ₹9 lakh." | C |
-| 8 | **Settle late.** `BUY001` delay rises, `INV014` reprices, Kestrel's next bid moves up. Then **toggle naive mode** — the market collapses to `OFR002`, ₹7 lakh | "Vireon pays five days late. The market notices, reprices, and reallocates. And this — this is what she'd have got from a lowest-rate marketplace." | C |
+| 7 | Clearing runs. Kestrel caps at ₹6 lakh, Nimbus takes ₹3 lakh. **`matched` → `funded`** | "Kestrel wants all of it. Its auto-components book won't allow it. So the market splits the deal — and Sharda still gets ₹9 lakh." | C |
+| 8 | **Settle late.** `BUY001` delay rises, `INV001` crosses `prime` → `standard`, 14 other invoices on that buyer reprice, Kestrel's next bid moves up. Then **toggle naive mode** — the market collapses to `OFR002`, ₹7 lakh | "Vireon pays five days late. The market notices, reprices, and reallocates. And this — this is what she'd have got from a lowest-rate marketplace." | C |
 
 **Step 6 sells the project. Step 8 closes it.** Everything else is setup.
 
@@ -188,7 +192,7 @@ Step 8's second half. Toggle `naive_mode: true` and let the market rank by rate 
 - `OFR002` rises to the top on 8.2%
 - Advance drops to 70% — **₹7.00 lakh instead of ₹9.00 lakh**
 - Settlement slows to 2 days
-- All-in cost *rises* to ₹17,436
+- All-in cost *rises* to ₹17,436, against ₹16,784 for the syndicated match
 
 The supplier who needed cash by Friday gets ₹2 lakh less, two days later, for more money — from the same four lenders, on the same invoice.
 
@@ -240,17 +244,28 @@ The supplier who needed cash by Friday gets ₹2 lakh less, two days later, for 
   "expected_match": {
     "syndicated": true,
     "total_advance_lakh": 9.00,
+    "blended_rate_annual": 0.0887,
+    "blended_cost_lakh": 0.16784,
     "allocations": [
       { "provider_id": "PRV003", "amount_lakh": 6.00 },
-      { "provider_id": "PRV001", "amount_lakh": 3.00 }
+      { "provider_id": "PRV004", "amount_lakh": 3.00 }
     ]
   },
 
   "settlement_event": { "outcome": "late", "days_late": 5 },
   "expected_after_learning": {
+    "BUY001_avg_delay_before": 4,
     "BUY001_avg_delay": 5,
+    "BUY001_delay_trend_after": 1.0,
+    "trigger_invoice_band_before": "prime",
+    "trigger_invoice_band_after": "standard",
+    "repriced_invoice_count": 14,
+    "INV014_pd_before": 0.0181,
+    "INV014_pd_after": 0.0204,
     "INV014_band_before": "prime",
-    "INV014_band_after": "standard"
+    "INV014_band_after": "prime",
+    "liquidity_returned_lakh": 0.00,
+    "kestrel_bid_adjustment": 0.000468
   }
 }
 ```
@@ -291,3 +306,4 @@ The financing terms are shaped to be plausible for Indian MSME invoice discounti
 |---|---|
 | 1.0 | Initial. Six providers, four offers, eight-step flow. `OFR003`-vs-`OFR002` established as the core argument; `OFR004` added as the cheapest-in-rupees decoy to pre-empt the "you just want lowest total cost" objection |
 | 1.1 | Fit scores and all-in costs replaced with the values `engine/scoring.py` actually produces. The originals were written by hand before the scorer existed: the costs were rounded mid-calculation (against `AGENTS.md` §3.1) and the fit scores did not come from the documented formula at all. `expected_ranking` corrected to `OFR003, OFR004, OFR001, OFR002` — under `cash_fastest`, `OFR004` genuinely outscores `OFR001` on speed, cost and fees, losing only on advance and structure. Every load-bearing claim is unchanged: `OFR003` still wins on fit, `OFR002` still wins on rate, `OFR004` still wins under `cheapest`, and `fit_beats_rate` is still true. |
+| 1.2 | Clearing and settlement figures replaced with what `market/` actually produces. Three corrections: **(a)** syndication partner is `PRV004` Nimbus, not `PRV001` Meridian — `OFR004` ranks second on fit; blended rate 0.0887, counterfactual gap ₹652 measured against the syndicated match. **(b)** The invoice that crosses a risk band on a 5-day delay is `INV001` itself (`prime` → `standard`); `INV014` reprices 0.0181 → 0.0204 and stays `prime`. **(c)** A `late` outcome returns no liquidity — the buyer has not paid (`PERSON_B.md` §3.4). |
