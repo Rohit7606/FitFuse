@@ -9,174 +9,220 @@
       "duplicate_of": null,
       "field_confidence": {
         "amount_lakh": "verified",
+        "irn": "verified",
         "buyer_gstin": "verified",
-        "tenor_days": "verified",
         "delivery_confirmed": "unknown"
       },
       "unknown_field_count": 1,
       "reason_text": "Invoice registered under a valid IRN and not previously financed. Delivery confirmation is unavailable."
     },
     "risk": {
-      "pd": 0.0210,
-      "pd_lower": 0.0140,
-      "pd_upper": 0.0280,
-      "uncertainty": 0.0070,
+      "pd": 0.021,
+      "pd_lower": 0.014,
+      "pd_upper": 0.028,
+      "uncertainty": 0.007,
       "risk_band": "prime",
-      "expected_loss_lakh": 0.15,
-      "reason_text": "Buyer rated AA with a 4-day average payment delay. Range is widened because delivery confirmation is unavailable.",
+      "expected_loss_lakh": 0.126,
+      "reason_text": "Buyer rated AA with a 4-day average payment delay. The range is widened because delivery confirmation is unavailable.",
       "reason_factors": [
-        { "kind": "buyer_grade",       "detail": "Buyer rated AA",                    "weight": 0.45 },
-        { "kind": "payment_history",   "detail": "4-day average delay",               "weight": 0.25 },
-        { "kind": "tenor",             "detail": "60-day tenor",                      "weight": 0.15 },
-        { "kind": "unverified_fields", "detail": "Delivery confirmation unavailable", "weight": 0.15 }
+        {
+          "kind": "buyer_grade",
+          "detail": "Buyer rated AA",
+          "weight": 0.45
+        },
+        {
+          "kind": "payment_delay",
+          "detail": "4-day average payment delay",
+          "weight": 0.25
+        },
+        {
+          "kind": "tenor",
+          "detail": "60-day tenor",
+          "weight": 0.18
+        },
+        {
+          "kind": "unverified",
+          "detail": "Delivery confirmation unavailable",
+          "weight": 0.12
+        }
       ]
     },
     "eligibility": [
       {
         "provider_id": "PRV001",
         "eligible": true,
-        "max_fundable_lakh": 10.00,
+        "max_fundable_lakh": 500.0,
         "exclusion_reason": null,
         "binding_constraint": null
       },
       {
         "provider_id": "PRV002",
         "eligible": true,
-        "max_fundable_lakh": 10.00,
+        "max_fundable_lakh": 200.0,
         "exclusion_reason": null,
         "binding_constraint": null
       },
       {
         "provider_id": "PRV003",
         "eligible": true,
-        "max_fundable_lakh": 6.00,
+        "max_fundable_lakh": 6.0,
         "exclusion_reason": null,
         "binding_constraint": "sector_limit"
       },
       {
         "provider_id": "PRV004",
         "eligible": true,
-        "max_fundable_lakh": 10.00,
+        "max_fundable_lakh": 100.0,
         "exclusion_reason": null,
         "binding_constraint": null
       },
       {
         "provider_id": "PRV005",
         "eligible": false,
-        "max_fundable_lakh": 0.00,
+        "max_fundable_lakh": 0.0,
         "exclusion_reason": "Invoice of ₹10.00 lakh exceeds Coastal Cooperative Bank's ₹8.00 lakh maximum ticket size.",
         "binding_constraint": "max_ticket"
       },
       {
         "provider_id": "PRV006",
         "eligible": false,
-        "max_fundable_lakh": 0.00,
-        "exclusion_reason": "Invoice upper risk estimate of 2.80% exceeds Sentinel Asset Managers' 1.50% risk appetite threshold.",
+        "max_fundable_lakh": 0.0,
+        "exclusion_reason": "Sentinel Asset Managers accepts a default probability up to 1.50%; this invoice's upper estimate is 2.80%.",
         "binding_constraint": "risk_appetite"
       }
     ],
-    "meta": { "schema_version": "1.0", "engine_version": "1.0" }
+    "meta": {
+      "stub": true,
+      "source": "api/stubs.py",
+      "data_source": "synthetic"
+    }
   },
   "offers": [
     {
       "offer_id": "OFR001",
       "invoice_id": "INV001",
       "provider_id": "PRV001",
-      "rate_annual": 0.0900,
-      "advance_rate": 0.80,
+      "rate_annual": 0.09,
+      "advance_rate": 0.8,
       "tenor_days": 60,
-      "fee_percent": 0.0050,
-      "fee_flat_lakh": 0.00,
+      "fee_percent": 0.005,
+      "fee_flat_lakh": 0.0,
       "days_to_settle": 3,
       "repayment_structure": "bullet",
-      "amount_committed_lakh": 8.00,
-      "advance_amount_lakh": 8.00,
-      "total_cost_lakh": 0.17,
-      "cash_now_lakh": 8.00,
-      "fit_score": 0.7100,
+      "amount_committed_lakh": 8.0,
+      "advance_amount_lakh": 8.0,
+      "total_cost_lakh": 0.16836,
+      "cash_now_lakh": 8.0,
+      "fit_score": 0.71,
       "component_scores": {
-        "cost": 0.68, "advance": 0.70, "speed": 0.40,
-        "tenor": 0.50, "fees": 0.80, "structure": 1.00
+        "cost": 0.0,
+        "advance": 0.0,
+        "speed": 0.0,
+        "tenor": 0.0,
+        "fees": 0.0,
+        "structure": 0.0
       },
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Meridian Bank offers a moderate rate with 80% advance. Settlement takes 3 days. Bullet repayment matches supplier preference."
+      "reason_text": "Costs ₹1,14,000 less than the cheapest rate but advances only 80%, settling in 3 days."
     },
     {
       "offer_id": "OFR002",
       "invoice_id": "INV001",
       "provider_id": "PRV002",
-      "rate_annual": 0.0820,
-      "advance_rate": 0.70,
+      "rate_annual": 0.082,
+      "advance_rate": 0.7,
       "tenor_days": 60,
-      "fee_percent": 0.0080,
-      "fee_flat_lakh": 0.00,
+      "fee_percent": 0.008,
+      "fee_flat_lakh": 0.0,
       "days_to_settle": 2,
       "repayment_structure": "bullet",
-      "amount_committed_lakh": 7.00,
-      "advance_amount_lakh": 7.00,
-      "total_cost_lakh": 0.17,
-      "cash_now_lakh": 7.00,
-      "fit_score": 0.6400,
+      "amount_committed_lakh": 7.0,
+      "advance_amount_lakh": 7.0,
+      "total_cost_lakh": 0.17436,
+      "cash_now_lakh": 7.0,
+      "fit_score": 0.64,
       "component_scores": {
-        "cost": 0.82, "advance": 0.40, "speed": 0.60,
-        "tenor": 0.50, "fees": 0.50, "structure": 1.00
+        "cost": 0.0,
+        "advance": 0.0,
+        "speed": 0.0,
+        "tenor": 0.0,
+        "fees": 0.0,
+        "structure": 0.0
       },
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Arcline Capital has the lowest headline rate at 8.2%, but advances only 70% — delivering ₹2.00 lakh less cash than the best fit. Higher fees make the all-in cost ₹715 more than Kestrel."
+      "reason_text": "Lowest headline rate at 8.20%, but advances only 70% and charges 0.80% in fees — ₹7,15 more in rupees than Kestrel."
     },
     {
       "offer_id": "OFR003",
       "invoice_id": "INV001",
       "provider_id": "PRV003",
-      "rate_annual": 0.0860,
-      "advance_rate": 0.90,
+      "rate_annual": 0.086,
+      "advance_rate": 0.9,
       "tenor_days": 60,
-      "fee_percent": 0.0040,
-      "fee_flat_lakh": 0.00,
+      "fee_percent": 0.004,
+      "fee_flat_lakh": 0.0,
       "days_to_settle": 0,
       "repayment_structure": "bullet",
-      "amount_committed_lakh": 6.00,
-      "advance_amount_lakh": 9.00,
-      "total_cost_lakh": 0.17,
-      "cash_now_lakh": 9.00,
-      "fit_score": 0.8900,
+      "amount_committed_lakh": 9.0,
+      "advance_amount_lakh": 9.0,
+      "total_cost_lakh": 0.16723,
+      "cash_now_lakh": 9.0,
+      "fit_score": 0.89,
       "component_scores": {
-        "cost": 0.72, "advance": 1.00, "speed": 1.00,
-        "tenor": 0.50, "fees": 1.00, "structure": 1.00
+        "cost": 0.0,
+        "advance": 0.0,
+        "speed": 0.0,
+        "tenor": 0.0,
+        "fees": 0.0,
+        "structure": 0.0
       },
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Kestrel Credit Fund delivers ₹9.00 lakh same day — the highest advance at the fastest speed. Costs ₹715 less than the lowest-rate offer despite a higher headline rate."
+      "reason_text": "Costs ₹715 less than the lowest-rate offer and delivers ₹2.00 lakh more cash, same day."
     },
     {
       "offer_id": "OFR004",
       "invoice_id": "INV001",
       "provider_id": "PRV004",
-      "rate_annual": 0.0940,
+      "rate_annual": 0.094,
       "advance_rate": 0.75,
       "tenor_days": 60,
-      "fee_percent": 0.0030,
-      "fee_flat_lakh": 0.00,
+      "fee_percent": 0.003,
+      "fee_flat_lakh": 0.0,
       "days_to_settle": 1,
       "repayment_structure": "instalment",
-      "amount_committed_lakh": 7.50,
-      "advance_amount_lakh": 7.50,
-      "total_cost_lakh": 0.15,
-      "cash_now_lakh": 7.50,
-      "fit_score": 0.6800,
+      "amount_committed_lakh": 7.5,
+      "advance_amount_lakh": 7.5,
+      "total_cost_lakh": 0.14589,
+      "cash_now_lakh": 7.5,
+      "fit_score": 0.68,
       "component_scores": {
-        "cost": 0.90, "advance": 0.55, "speed": 0.80,
-        "tenor": 0.50, "fees": 0.95, "structure": 0.00
+        "cost": 0.0,
+        "advance": 0.0,
+        "speed": 0.0,
+        "tenor": 0.0,
+        "fees": 0.0,
+        "structure": 0.0
       },
       "feasible": true,
       "rejection_reason": null,
-      "reason_text": "Nimbus Finserv is the cheapest in absolute rupees at ₹14,589, but advances only 75% and uses instalment repayment — not what this supplier asked for."
+      "reason_text": "Cheapest in rupees at ₹14,589, but advances only 75% and repays in instalments rather than a single payment."
     }
   ],
-  "ranking": ["OFR003", "OFR001", "OFR004", "OFR002"],
-  "naive_ranking": ["OFR002", "OFR003", "OFR001", "OFR004"],
+  "ranking": [
+    "OFR003",
+    "OFR001",
+    "OFR004",
+    "OFR002"
+  ],
+  "naive_ranking": [
+    "OFR002",
+    "OFR003",
+    "OFR001",
+    "OFR004"
+  ],
   "summary": {
     "offer_count": 4,
     "feasible_count": 4,

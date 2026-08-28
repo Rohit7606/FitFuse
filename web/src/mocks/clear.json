@@ -4,23 +4,51 @@
       "match_id": "MCH001",
       "invoice_id": "INV001",
       "allocations": [
-        { "provider_id": "PRV003", "amount_lakh": 6.00, "offer_id": "OFR003" },
-        { "provider_id": "PRV001", "amount_lakh": 3.00, "offer_id": "OFR001" }
+        {
+          "provider_id": "PRV003",
+          "amount_lakh": 6.0,
+          "offer_id": "OFR003"
+        },
+        {
+          "provider_id": "PRV001",
+          "amount_lakh": 3.0,
+          "offer_id": "OFR001"
+        }
       ],
       "syndicated": true,
-      "total_advance_lakh": 9.00,
+      "total_advance_lakh": 9.0,
       "blended_rate_annual": 0.0873,
-      "blended_cost_lakh": 0.17,
-      "supplier_fit_score": 0.8600,
+      "blended_cost_lakh": 0.1675,
+      "supplier_fit_score": 0.89,
       "state": "matched",
       "days_to_settle": 0,
-      "reason_text": "Kestrel Credit Fund funds ₹6.00 lakh at its sector limit; Meridian Bank funds the remaining ₹3.00 lakh."
+      "reason_text": "Kestrel Credit Fund could fund only ₹6.00 lakh before hitting its auto-components sector limit, so Meridian Bank funded the remaining ₹3.00 lakh."
     }
   ],
-  "unmatched": [],
-  "provider_utilisation": [
-    { "provider_id": "PRV003", "committed_lakh": 6.00, "remaining_lakh": 494.00, "utilisation": 0.0120 },
-    { "provider_id": "PRV001", "committed_lakh": 3.00, "remaining_lakh": 1997.00, "utilisation": 0.0003 }
+  "unmatched": [
+    {
+      "invoice_id": "INV014",
+      "reason": "Stub response: only the first invoice is matched in Phase 0."
+    }
   ],
-  "summary": { "matched_count": 1, "syndicated_count": 1, "iterations": 3, "stable": true }
+  "provider_utilisation": [
+    {
+      "provider_id": "PRV001",
+      "committed_lakh": 3.0,
+      "remaining_lakh": 1997.0,
+      "utilisation": 0.0015
+    },
+    {
+      "provider_id": "PRV003",
+      "committed_lakh": 6.0,
+      "remaining_lakh": 494.0,
+      "utilisation": 0.012
+    }
+  ],
+  "summary": {
+    "matched_count": 1,
+    "syndicated_count": 1,
+    "iterations": 3,
+    "stable": true
+  }
 }
