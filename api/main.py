@@ -25,11 +25,19 @@ from fastapi.responses import JSONResponse
 
 from api import stubs
 from api.models import AssessRequest, ClearRequest, OffersRequest, SettleRequest
+from engine.assess import (
+    InvalidWeightsError,
+    LiquidityOverride,
+    PreferenceOverride,
+    Scenario,
+    UnknownEntityError,
+)
+from engine.assess import assess as engine_assess
+from engine.assess import score_offers as engine_score_offers
+from market import simulate
 
-# Local imports — uncomment as implementations land
-# from engine.assess import assess as engine_assess, score_offers, UnknownEntityError, InvalidWeightsError
-# from market.simulate import generate_offers, clear as market_clear, settle as market_settle
-# from market.settlement import IllegalTransitionError
+# Settlement and learning are Phase 3; /api/settle stays on the stub until
+# market/settlement.py exists. Everything else is wired to the real engine.
 
 WEIGHT_TOLERANCE = 0.001  # SCHEMA.md §6: weights sum to 1.0 ± 0.001
 
@@ -94,6 +102,47 @@ def _check_weights(scenario) -> JSONResponse | None:
     return None
 
 
+def to_scenario(scenario) -> Scenario:
+    """Convert the request body's scenario into the engine's frozen Scenario.
+
+    The engine takes an immutable, tuple-based Scenario so nothing can mutate
+    it mid-scoring. Converting at the boundary keeps pydantic models out of
+    engine/ and market/ entirely.
+    """
+    if scenario is None:
+        return Scenario()
+    return Scenario(
+        preference_overrides=tuple(
+            PreferenceOverride(supplier_id=o.supplier_id,
+                               weights=dict(o.weights),
+                               urgent=o.urgent)
+            for o in scenario.preference_overrides
+        ),
+        liquidity_overrides=tuple(
+            LiquidityOverride(provider_id=o.provider_id,
+                              available_liquidity_lakh=o.available_liquidity_lakh)
+            for o in scenario.liquidity_overrides
+        ),
+        naive_mode=scenario.naive_mode,
+    )
+
+
+def _engine_call(fn, *args, **kwargs):
+    """Run an engine/market call, mapping its exceptions to the right status.
+
+    A typo'd ID or bad weights is a bad request, never a 500 (SCHEMA.md §5.7).
+    """
+    try:
+        return fn(*args, **kwargs)
+    except UnknownEntityError as exc:
+        return _error(400, "unknown_entity", str(exc),
+                      entity_id=getattr(exc, "entity_id", None))
+    except InvalidWeightsError as exc:
+        return _error(400, "invalid_weights", str(exc))
+    except Exception as exc:  # noqa: BLE001 — last resort, still a clean body
+        return _error(500, "engine_failure", f"{type(exc).__name__}: {exc}")
+
+
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
@@ -138,18 +187,32 @@ def assess_invoice(req: AssessRequest):
     return (
         _find_invoice(req.invoice_id)
         or _check_weights(req.scenario)
-        or stubs.stub_assessment(req.invoice_id)
+        or _engine_call(engine_assess, req.invoice_id, load_market(),
+                        to_scenario(req.scenario))
     )
 
 
 @app.post("/api/offers")
 def get_offers(req: OffersRequest):
     """Generate and score competing offers. naive_ranking is always returned."""
-    return (
-        _find_invoice(req.invoice_id)
-        or _check_weights(req.scenario)
-        or stubs.stub_offers(req.invoice_id)
-    )
+    if (err := _find_invoice(req.invoice_id) or _check_weights(req.scenario)):
+        return err
+    return _engine_call(_offers, req.invoice_id, to_scenario(req.scenario))
+
+
+def _offers(invoice_id: str, scenario) -> dict:
+    """assess → agents bid → engine scores. The seam, in four lines."""
+    market = load_market()
+    assessment = engine_assess(invoice_id, market, scenario)
+    raw = simulate.generate_offers(invoice_id, market, assessment, scenario)
+    preferences = simulate.resolve_preferences(invoice_id, market, scenario)
+    return {
+        "invoice_id": invoice_id,
+        "assessment": assessment,
+        # naive_ranking comes back on every response, so the frontend can
+        # toggle the counterfactual with no second request (PERSON_B.md §4.3).
+        **engine_score_offers(raw, assessment, preferences),
+    }
 
 
 @app.post("/api/clear")
@@ -161,7 +224,10 @@ def clear_market(req: ClearRequest):
     for invoice_id in req.invoice_ids:
         if (err := _find_invoice(invoice_id)) is not None:
             return err
-    return _check_weights(req.scenario) or stubs.stub_clearing(req.invoice_ids)
+    if (err := _check_weights(req.scenario)) is not None:
+        return err
+    return _engine_call(simulate.clear, req.invoice_ids, load_market(),
+                        to_scenario(req.scenario))
 
 
 @app.post("/api/settle")
