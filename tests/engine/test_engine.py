@@ -502,3 +502,186 @@ class TestPurity:
         assert result["verification"]["status"] == "rejected"
         assert result["eligibility"] == []
         assert result["meta"]["assessed"] is False
+
+
+class TestHardeningEdgeCases:
+    """Edge cases identified during Phase 4 hardening."""
+
+    def test_irn_malformed_hex_rejected(self):
+        """64-char string with non-hex characters is rejected as malformed IRN."""
+        import copy
+
+        from engine.verify import verify
+
+        market = copy.deepcopy(_market())
+        market["invoices"][0]["irn"] = "g" * 64
+        v = verify(market["invoices"][0]["invoice_id"], market)
+        assert v["status"] == "rejected"
+        assert v["irn_valid"] is False
+        assert "malformed" in v["reason_text"]
+
+    def test_unknown_buyer_handling(self):
+        """Invoice with unknown buyer_id fails verification tag and raises in assess."""
+        import copy
+
+        from engine.assess import UnknownEntityError, assess
+        from engine.verify import verify
+
+        market = copy.deepcopy(_market())
+        market["invoices"][0]["buyer_id"] = "BUY999"
+        v = verify(market["invoices"][0]["invoice_id"], market)
+        assert v["field_confidence"].get("buyer_gstin") != "verified"
+
+        with pytest.raises(UnknownEntityError):
+            assess(market["invoices"][0]["invoice_id"], market)
+
+    def test_brand_new_buyer_no_delay_data(self):
+        """Buyer with no prior payment delay history evaluates gracefully."""
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = _market()
+        inv = market["invoices"][0]
+        sup = market["suppliers"][0]
+        v = verify("INV001", market)
+
+        buyer_new = {"buyer_id": "BUY_NEW", "credit_grade": "A"}
+        r = score_risk(inv, sup, buyer_new, v)
+        assert 0.0 <= r["pd"] <= 1.0
+        assert r["risk_band"] in ("prime", "standard", "watch", "decline")
+
+    def test_zero_prior_financings_and_defaults(self):
+        """prior_financings=0 with prior_defaults=0 produces NO_HISTORY_PRIOR."""
+        from engine.config import NO_HISTORY_PRIOR
+        from engine.risk import _default_rate
+
+        sup_no_hist = {"supplier_id": "SUP_TEST", "prior_financings": 0, "prior_defaults": 0}
+        assert _default_rate(sup_no_hist) == NO_HISTORY_PRIOR
+
+        sup_clean = {"supplier_id": "SUP_TEST", "prior_financings": 5, "prior_defaults": 0}
+        assert _default_rate(sup_clean) == 0.0
+
+    def test_risk_band_boundaries(self):
+        """Banding on exact threshold values strictly matches config.py convention."""
+        from engine.risk import _risk_band
+
+        assert _risk_band(0.0299) == "prime"
+        assert _risk_band(0.0300) == "standard"
+        assert _risk_band(0.0599) == "standard"
+        assert _risk_band(0.0600) == "watch"
+        assert _risk_band(0.1199) == "watch"
+        assert _risk_band(0.1200) == "decline"
+
+    def test_zero_available_liquidity_ineligible(self):
+        """Provider with available_liquidity_lakh=0 is marked ineligible for liquidity."""
+        import copy
+
+        from engine.eligibility import check_eligibility
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = copy.deepcopy(_market())
+        inv = market["invoices"][0]
+        sup = market["suppliers"][0]
+        buy = market["buyers"][0]
+        r = score_risk(inv, sup, buy, verify("INV001", market))
+
+        market["providers"][0]["available_liquidity_lakh"] = 0.0
+        elig = check_eligibility(inv, sup, r, market["providers"])
+        p0 = next(e for e in elig if e["provider_id"] == market["providers"][0]["provider_id"])
+        assert p0["eligible"] is False
+        assert p0["binding_constraint"] == "liquidity"
+        assert p0["max_fundable_lakh"] == 0.00
+
+    def test_exact_max_ticket_boundary_eligible(self):
+        """Invoice amount exactly equal to max_ticket_lakh is eligible."""
+        import copy
+
+        from engine.eligibility import check_eligibility
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = copy.deepcopy(_market())
+        inv = dict(market["invoices"][0], amount_lakh=10.0)
+        sup = market["suppliers"][0]
+        buy = market["buyers"][0]
+        r = score_risk(inv, sup, buy, verify("INV001", market))
+
+        market["providers"][0]["max_ticket_lakh"] = 10.0
+        market["providers"][0]["min_ticket_lakh"] = 1.0
+        market["providers"][0]["available_liquidity_lakh"] = 100.0
+        elig = check_eligibility(inv, sup, r, market["providers"])
+        p0 = next(e for e in elig if e["provider_id"] == market["providers"][0]["provider_id"])
+        assert p0["eligible"] is True
+
+    def test_all_offers_infeasible(self):
+        """When all offers are infeasible, ranking handles empty feasible set gracefully."""
+        from engine.assess import assess, score_offers
+        from market.simulate import generate_offers
+
+        market = _market()
+        a = assess("INV001", market)
+        offers = generate_offers("INV001", market, a)
+
+        prefs = dict(market["suppliers"][0]["preferences"], min_advance_rate=0.99)
+        scored = score_offers(offers, a, prefs)
+
+        assert scored["summary"]["offer_count"] == len(offers)
+        assert scored["summary"]["feasible_count"] == 0
+        assert all(o["feasible"] is False for o in scored["offers"])
+        assert all(o["fit_score"] == 0.0 for o in scored["offers"])
+        assert all(bool(o["reason_text"]) for o in scored["offers"])
+        assert len(scored["ranking"]) == len(offers)
+        assert len(scored["naive_ranking"]) == len(offers)
+
+    def test_floating_point_weight_tolerance(self):
+        """Weight drift within WEIGHT_SUM_TOLERANCE succeeds; large drift raises InvalidWeightsError."""
+        import copy
+
+        from engine.assess import InvalidWeightsError, assess, score_offers
+        from market.simulate import generate_offers
+
+        market = _market()
+        a = assess("INV001", market)
+        offers = generate_offers("INV001", market, a)
+
+        # Drift within tolerance (sum = 0.9999999998)
+        prefs_drift = copy.deepcopy(market["suppliers"][0]["preferences"])
+        prefs_drift["weights"] = {
+            "cost": 0.1499999999, "advance": 0.30, "speed": 0.35,
+            "tenor": 0.10, "fees": 0.05, "structure": 0.0499999999,
+        }
+        res = score_offers(offers, a, prefs_drift)
+        assert res["summary"]["best_fit_offer_id"] is not None
+
+        # Exceeding tolerance (sum = 0.90)
+        prefs_bad = copy.deepcopy(market["suppliers"][0]["preferences"])
+        prefs_bad["weights"] = {
+            "cost": 0.10, "advance": 0.30, "speed": 0.30,
+            "tenor": 0.10, "fees": 0.05, "structure": 0.05,
+        }
+        with pytest.raises(InvalidWeightsError):
+            score_offers(offers, a, prefs_bad)
+
+    def test_component_scores_tie_reason(self):
+        """When all offers have identical terms, reason_text is non-empty and well-formed."""
+        from engine.assess import assess, score_offers
+
+        market = _market()
+        a = assess("INV001", market)
+        offers_identical = [
+            {
+                "offer_id": f"OFR00{i}", "provider_id": f"PRV00{i}",
+                "rate_annual": 0.088, "advance_rate": 0.85, "days_to_settle": 1,
+                "tenor_days": 60, "fee_percent": 0.001, "fee_flat_lakh": 0.0,
+                "repayment_structure": "bullet", "feasible": True,
+            }
+            for i in range(1, 5)
+        ]
+        res = score_offers(offers_identical, a, market["suppliers"][0]["preferences"])
+        assert len(res["offers"]) == 4
+        for o in res["offers"]:
+            assert bool(o["reason_text"])
+            assert isinstance(o["reason_text"], str)
+            assert len(o["reason_text"]) > 10
+
