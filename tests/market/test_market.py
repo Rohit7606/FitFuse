@@ -97,20 +97,133 @@ class TestBiddingIsReachable:
         assert min(rates, key=rates.get) == "PRV002"
 
 
+def _assessment(providers, eligible_ids, max_fundable=None):
+    """A minimal Assessment — engine/assess.py is still a stub (AGENTS.md §3.3)."""
+    max_fundable = max_fundable or {}
+    return {
+        "invoice_id": "INV001",
+        "risk": {"pd": 0.0210, "pd_lower": 0.0140, "pd_upper": 0.0280,
+                 "uncertainty": 0.0070},
+        "eligibility": [
+            {"provider_id": pid,
+             "eligible": pid in eligible_ids,
+             "max_fundable_lakh": max_fundable.get(pid, 999.0)}
+            for pid in sorted(providers)
+        ],
+    }
+
+
+@pytest.fixture(scope="module")
+def invoice():
+    with open(_MARKET_PATH, encoding="utf-8") as f:
+        return [i for i in json.load(f)["invoices"] if i["invoice_id"] == "INV001"][0]
+
+
+@pytest.fixture(scope="module")
+def demo_offers(providers, invoice):
+    from market.agents import generate_offers
+    demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+    assessment = _assessment(providers, demo, max_fundable={"PRV003": 6.00})
+    return {o["provider_id"]: o
+            for o in generate_offers([providers[p] for p in demo], invoice, assessment)}
+
+
 class TestAgents:
     """Provider agent tests."""
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_agents_differentiate(self):
-        pass
+    # DEMO_SCENARIO.md §4 — rate, advance, days_to_settle, fee, structure
+    DEMO_TERMS = {
+        "PRV001": (0.0900, 0.80, 3, 0.0050, "bullet"),
+        "PRV002": (0.0820, 0.70, 2, 0.0080, "bullet"),
+        "PRV003": (0.0860, 0.90, 0, 0.0040, "bullet"),
+        "PRV004": (0.0940, 0.75, 1, 0.0030, "instalment"),
+    }
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_never_below_cost(self):
-        pass
+    @pytest.mark.parametrize("provider_id", sorted(DEMO_TERMS))
+    def test_demo_offer_terms(self, demo_offers, provider_id):
+        """The acceptance test for this module — PERSON_B.md §3.1."""
+        rate, advance, days, fee, structure = self.DEMO_TERMS[provider_id]
+        o = demo_offers[provider_id]
+        assert o["rate_annual"] == rate
+        assert o["advance_rate"] == advance
+        assert o["days_to_settle"] == days
+        assert o["fee_percent"] == fee
+        assert o["repayment_structure"] == structure
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_shading_increases(self):
-        pass
+    def test_agents_differentiate(self, demo_offers):
+        """Four offers differing on more than rate — the whole thesis."""
+        for field in ("rate_annual", "advance_rate", "days_to_settle", "fee_percent"):
+            values = {o[field] for o in demo_offers.values()}
+            assert len(values) == 4, f"all four offers must differ on {field}"
+        assert len({o["repayment_structure"] for o in demo_offers.values()}) > 1
+
+    def test_never_below_cost(self, providers, invoice):
+        """A hard invariant, at any uncertainty — PERSON_B.md §3.1."""
+        from market.agents import generate_offer
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+        for pid, p in sorted(providers.items()):
+            for uncertainty in (0.0, 0.007, 0.05, 0.4):
+                a = _assessment(providers, [pid])
+                a["risk"]["uncertainty"] = uncertainty
+                offer = generate_offer(p, invoice, a, elig)
+                assert offer["rate_annual"] >= p["cost_of_funds"], pid
+
+    def test_shading_increases(self, providers, invoice):
+        """Higher uncertainty must raise the bid, all else equal."""
+        from market.agents import generate_offer
+        p = providers["PRV003"]
+        elig = {"provider_id": "PRV003", "eligible": True, "max_fundable_lakh": 99.0}
+        rates = []
+        for uncertainty in (0.001, 0.007, 0.02):
+            a = _assessment(providers, ["PRV003"])
+            a["risk"]["uncertainty"] = uncertainty
+            rates.append(generate_offer(p, invoice, a, elig)["rate_annual"])
+        assert rates == sorted(rates) and rates[0] < rates[-1]
+
+    def test_ineligible_provider_does_not_bid(self, providers, invoice):
+        from market.agents import generate_offer
+        a = _assessment(providers, [])
+        assert generate_offer(providers["PRV005"], invoice, a,
+                              {"eligible": False, "max_fundable_lakh": 0.0}) is None
+
+    def test_capacity_limited_provider_still_bids(self, demo_offers):
+        """Kestrel wants the whole deal; its sector limit says 6.00 lakh.
+
+        Bidding for the part it can fund is what makes syndication possible.
+        """
+        kestrel = demo_offers["PRV003"]
+        assert kestrel["advance_amount_lakh"] == 9.00
+        assert kestrel["amount_committed_lakh"] == 6.00
+
+    def test_respects_speed_capability(self, providers, invoice):
+        """An agent may never promise to settle faster than it can."""
+        from market.agents import generate_offer
+        for pid, p in sorted(providers.items()):
+            a = _assessment(providers, [pid])
+            offer = generate_offer(p, invoice, a,
+                                   {"eligible": True, "max_fundable_lakh": 99.0})
+            assert offer["days_to_settle"] >= p["speed_capability_days"], pid
+
+    def test_respects_preferred_structures(self, providers, invoice):
+        from market.agents import generate_offer
+        for pid, p in sorted(providers.items()):
+            a = _assessment(providers, [pid])
+            offer = generate_offer(p, invoice, a,
+                                   {"eligible": True, "max_fundable_lakh": 99.0})
+            assert offer["repayment_structure"] in p["preferred_structures"], pid
+
+    def test_deterministic(self, providers, invoice):
+        from market.agents import generate_offers
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        a = _assessment(providers, demo, max_fundable={"PRV003": 6.00})
+        args = ([providers[p] for p in demo], invoice, a)
+        assert json.dumps(generate_offers(*args)) == json.dumps(generate_offers(*args))
+
+    def test_arcline_posts_lowest_rate(self, demo_offers):
+        """The demo's trap must survive any tuning."""
+        cheapest = min(demo_offers.values(), key=lambda o: o["rate_annual"])
+        assert cheapest["provider_id"] == "PRV002"
+
 
 
 class TestClearing:
