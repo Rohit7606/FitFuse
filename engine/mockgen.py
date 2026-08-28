@@ -249,13 +249,35 @@ def generate_market(seed=MOCK_SEED):
         "Electronics", "Auto", "Packaging", "Chemicals", "Agrotech"
     ]
 
+    used_names = set()
+    used_names.add(sup001["name"])
+    used_names.add(buy001["name"])
+    # We will also add the hardcoded providers to avoid any extremely unlikely overlaps, though they have different shapes.
+    for p in providers:
+        used_names.add(p["name"])
+
     for i in range(2, 61): # SUP002 to SUP060
         sid = f"SUP{i:03d}"
+        
+        while True:
+            if i == 2:
+                name_candidate = "Ramesh Enterprises"
+            else:
+                name_candidate = f"{rng.choice(names_prefix)} {rng.choice(names_suffix)} Pvt Ltd"
+            
+            if name_candidate not in used_names:
+                used_names.add(name_candidate)
+                break
+            else:
+                # If collision, try again. If we somehow exhaust combinations (impossible with this pool size), it loops.
+                # To be completely safe, we can just let it loop since the pool has 27 * 20 = 540 combinations for 59 slots.
+                pass
+
         if i == 2:
             # SUP002 already referenced in INV002
             sup = {
                 "supplier_id": sid,
-                "name": "Ramesh Enterprises",
+                "name": name_candidate,
                 "sector": "textiles",
                 "city": "Mumbai",
                 "years_operating": rng.randint(1, 20),
@@ -281,7 +303,7 @@ def generate_market(seed=MOCK_SEED):
         else:
             sup = {
                 "supplier_id": sid,
-                "name": f"{rng.choice(names_prefix)} {rng.choice(names_suffix)} Pvt Ltd",
+                "name": name_candidate,
                 "sector": rng.choice(sectors),
                 "city": rng.choice(cities),
                 "years_operating": rng.randint(1, 25),
@@ -318,10 +340,17 @@ def generate_market(seed=MOCK_SEED):
     grades = ["AAA", "AA", "A", "BBB", "BB"]
     for i in range(2, 13):
         bid = f"BUY{i:03d}"
+        
+        while True:
+            name_candidate = f"{rng.choice(b_names)} {rng.choice(b_types)} Ltd"
+            if name_candidate not in used_names:
+                used_names.add(name_candidate)
+                break
+                
         grade = rng.choice(["AAA", "AA", "AA", "A", "A", "A", "BBB", "BB"]) # skewed towards A/AA
         buy = {
             "buyer_id": bid,
-            "name": f"{rng.choice(b_names)} {rng.choice(b_types)} Ltd",
+            "name": name_candidate,
             "sector": rng.choice(sectors),
             "credit_grade": grade,
             "avg_payment_delay_days": rng.randint(0, 15),
