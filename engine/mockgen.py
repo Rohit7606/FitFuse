@@ -238,8 +238,16 @@ def generate_market(seed=MOCK_SEED):
     # Generate Suppliers (up to ~60)
     sectors = ["auto_components", "textiles", "fmcg", "electronics", "pharmaceuticals", "agriculture"]
     cities = ["Pune", "Mumbai", "Delhi", "Bengaluru", "Chennai", "Hyderabad", "Ahmedabad"]
-    names_prefix = ["Apex", "Zenith", "Prime", "Global", "Indian", "Sunrise", "National", "Star", "Royal", "Balaji"]
-    names_suffix = ["Industries", "Enterprises", "Traders", "Solutions", "Manufacturing", "Synthetics", "Corp"]
+    names_prefix = [
+        "Apex", "Zenith", "Prime", "Global", "Indian", "Sunrise", "National", "Star", "Royal", "Balaji",
+        "Krishna", "Vindhya", "Deccan", "Oriental", "Pioneer", "Sterling", "Bharat", "Aarav", "Paramount",
+        "Supreme", "Dynamic", "Precision", "Modern", "Classic", "Universal", "Maruthi", "Swastik"
+    ]
+    names_suffix = [
+        "Industries", "Enterprises", "Traders", "Solutions", "Manufacturing", "Synthetics", "Corp",
+        "Logistics", "Ventures", "Plastics", "Steel", "Textiles", "Exports", "Engineering", "Motors",
+        "Electronics", "Auto", "Packaging", "Chemicals", "Agrotech"
+    ]
 
     for i in range(2, 61): # SUP002 to SUP060
         sid = f"SUP{i:03d}"
@@ -299,8 +307,14 @@ def generate_market(seed=MOCK_SEED):
         suppliers.append(sup)
 
     # Generate Buyers (up to ~12)
-    b_names = ["Mega", "Titan", "Pinnacle", "Vertex", "Quantum", "Nexus", "Stellar", "Horizon", "Orbit", "Nova", "Galaxy"]
-    b_types = ["Retail", "Motors", "Electronics", "Foods", "Pharma"]
+    b_names = [
+        "Mega", "Titan", "Pinnacle", "Vertex", "Quantum", "Nexus", "Stellar", "Horizon", "Orbit", "Nova", "Galaxy",
+        "Atlas", "Omega", "Cosmos", "Jupiter", "Apollo", "Meridian", "Vanguard", "Eon"
+    ]
+    b_types = [
+        "Retail", "Motors", "Electronics", "Foods", "Pharma", "FMCG", "Apparel",
+        "Logistics", "Engineering", "Infotech", "Healthcare", "Energy"
+    ]
     grades = ["AAA", "AA", "A", "BBB", "BB"]
     for i in range(2, 13):
         bid = f"BUY{i:03d}"
