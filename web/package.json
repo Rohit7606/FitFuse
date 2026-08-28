@@ -8,7 +8,7 @@
     "dev": "vite",
     "dev:live": "VITE_API_BASE=http://localhost:8000 vite",
     "build": "vite build",
-    "lint": "echo 'lint configured'",
+    "lint": "eslint src --ext js,jsx",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,6 +17,10 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.5",
     "vite": "^5.4.0"
   }
 }

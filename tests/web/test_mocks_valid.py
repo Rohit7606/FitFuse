@@ -31,13 +31,17 @@ def test_offers_mock_validates():
 
     # schema.json defines ScoredOffer and Assessment
     jsonschema.validate(instance=mock.get("assessment"), schema={**schema, "$ref": "#/definitions/Assessment"})
-    for offer in mock.get("offers", []):
+    offers = mock.get("offers", [])
+    assert len(offers) == 4, "Expected exactly 4 offers in DEMO_SCENARIO"
+    for offer in offers:
         jsonschema.validate(instance=offer, schema={**schema, "$ref": "#/definitions/ScoredOffer"})
 
 def test_clear_mock_validates():
     schema = load_schema()
     mock = load_mock("clear.json")
-    for match in mock.get("matches", []):
+    matches = mock.get("matches", [])
+    assert len(matches) == 4, "Expected exactly 4 matches in DEMO_SCENARIO"
+    for match in matches:
         jsonschema.validate(instance=match, schema={**schema, "$ref": "#/definitions/Match"})
 
 def test_settle_mock_validates():

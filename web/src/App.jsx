@@ -7,7 +7,7 @@
  * Owner: Person C
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { getMarket } from './utils/api.js';
 
 export default function App() {
