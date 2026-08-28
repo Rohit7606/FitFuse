@@ -119,6 +119,11 @@ def generate_risk_reason(risk: dict, buyer: dict, verification: dict) -> str:
     return " ".join(parts)
 
 
+def _possessive(name: str) -> str:
+    """Return the correct possessive form of a name (e.g. 'Managers\'' vs 'Bank\'s')."""
+    return f"{name}'" if name.endswith(("s", "S")) else f"{name}'s"
+
+
 def generate_exclusion_reason(
     provider: dict,
     invoice: dict,
@@ -131,17 +136,17 @@ def generate_exclusion_reason(
 
     if binding_constraint == "max_ticket":
         max_ticket = details.get("max_ticket_lakh", provider.get("max_ticket_lakh", 0.0))
-        return f"Invoice of {format_lakh(amount_lakh)} exceeds {pname}'s {format_lakh(max_ticket)} maximum ticket size."
+        return f"Invoice of {format_lakh(amount_lakh)} exceeds {_possessive(pname)} {format_lakh(max_ticket)} maximum ticket size."
     elif binding_constraint == "min_ticket":
         min_ticket = details.get("min_ticket_lakh", provider.get("min_ticket_lakh", 0.0))
-        return f"Invoice of {format_lakh(amount_lakh)} is below {pname}'s {format_lakh(min_ticket)} minimum ticket size."
+        return f"Invoice of {format_lakh(amount_lakh)} is below {_possessive(pname)} {format_lakh(min_ticket)} minimum ticket size."
     elif binding_constraint == "liquidity":
         liq = details.get("available_liquidity_lakh", provider.get("available_liquidity_lakh", 0.0))
         return f"{pname} has {format_lakh(liq)} available liquidity, insufficient to fund new invoices."
     elif binding_constraint == "risk_appetite":
         pd_upper = details.get("pd_upper", 0.0)
         appetite = provider.get("risk_appetite", 0.0)
-        return f"Invoice risk (PD upper bound of {pd_upper:.4f}) exceeds {pname}'s risk appetite of {appetite:.4f}."
+        return f"Invoice risk (PD upper bound of {pd_upper:.2%}) exceeds {_possessive(pname)} risk appetite of {appetite:.2%}."
     elif binding_constraint == "sector_limit":
         sector = details.get("sector", "this").replace("_", " ")
         headroom = details.get("headroom_sector", 0.0)
@@ -153,6 +158,6 @@ def generate_exclusion_reason(
     elif binding_constraint == "target_return":
         ret = details.get("max_feasible_return", 0.0)
         target = provider.get("target_return", 0.0)
-        return f"Projected return ({ret:.2%}) cannot meet {pname}'s required target return of {target:.2%}."
+        return f"Projected return ({ret:.2%}) cannot meet {_possessive(pname)} required target return of {target:.2%}."
 
     return f"{pname} is ineligible due to {binding_constraint} constraint."

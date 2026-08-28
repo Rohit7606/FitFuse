@@ -338,15 +338,18 @@ class TestEligibility:
         assert prv5["eligible"] is False
         assert prv5["binding_constraint"] == "max_ticket"
         assert prv5["max_fundable_lakh"] == 0.00
-        assert "Coastal Cooperative Bank" in prv5["exclusion_reason"]
+        assert "Coastal Cooperative Bank's" in prv5["exclusion_reason"]
         assert "exceeds" in prv5["exclusion_reason"]
 
-        # PRV006 excluded due to risk_appetite
+        # PRV006 excluded due to risk_appetite (2.80% vs 1.50%, Sentinel Asset Managers')
         prv6 = elig_by_id["PRV006"]
         assert prv6["eligible"] is False
         assert prv6["binding_constraint"] == "risk_appetite"
         assert prv6["max_fundable_lakh"] == 0.00
-        assert "Sentinel Asset Managers" in prv6["exclusion_reason"]
+        assert "Sentinel Asset Managers'" in prv6["exclusion_reason"]
+        assert "Sentinel Asset Managers's" not in prv6["exclusion_reason"]
+        assert "2.80%" in prv6["exclusion_reason"]
+        assert "1.50%" in prv6["exclusion_reason"]
 
     def test_max_fundable(self):
         """Kestrel's max_fundable_lakh is 6.00 on demo invoice INV001."""

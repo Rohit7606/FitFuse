@@ -14,6 +14,11 @@ from __future__ import annotations
 from engine.config import RECOVERY_RATE
 
 
+def _possessive(name: str) -> str:
+    """Return the correct possessive form of a name (e.g. 'Managers\'' vs 'Bank\'s')."""
+    return f"{name}'" if name.endswith(("s", "S")) else f"{name}'s"
+
+
 def check_eligibility(
     invoice: dict,
     supplier: dict,
@@ -80,7 +85,7 @@ def check_eligibility(
                 "eligible": False,
                 "max_fundable_lakh": 0.00,
                 "exclusion_reason": (
-                    f"Invoice of ₹{amount_lakh:.2f} lakh is below {pname}'s "
+                    f"Invoice of ₹{amount_lakh:.2f} lakh is below {_possessive(pname)} "
                     f"₹{min_ticket:.2f} lakh minimum ticket size."
                 ),
                 "binding_constraint": "min_ticket",
@@ -95,7 +100,7 @@ def check_eligibility(
                 "eligible": False,
                 "max_fundable_lakh": 0.00,
                 "exclusion_reason": (
-                    f"Invoice of ₹{amount_lakh:.2f} lakh exceeds {pname}'s "
+                    f"Invoice of ₹{amount_lakh:.2f} lakh exceeds {_possessive(pname)} "
                     f"₹{max_ticket:.2f} lakh maximum ticket size."
                 ),
                 "binding_constraint": "max_ticket",
@@ -125,8 +130,8 @@ def check_eligibility(
                 "eligible": False,
                 "max_fundable_lakh": 0.00,
                 "exclusion_reason": (
-                    f"Invoice risk (PD upper bound of {pd_upper:.4f}) exceeds "
-                    f"{pname}'s risk appetite of {risk_appetite:.4f}."
+                    f"Invoice risk (PD upper bound of {pd_upper:.2%}) exceeds "
+                    f"{_possessive(pname)} risk appetite of {risk_appetite:.2%}."
                 ),
                 "binding_constraint": "risk_appetite",
             })
@@ -192,7 +197,7 @@ def check_eligibility(
                 "eligible": False,
                 "max_fundable_lakh": 0.00,
                 "exclusion_reason": (
-                    f"Projected return ({max_feasible_return:.2%}) cannot meet {pname}'s "
+                    f"Projected return ({max_feasible_return:.2%}) cannot meet {_possessive(pname)} "
                     f"required target return of {target_return:.2%}."
                 ),
                 "binding_constraint": "target_return",
