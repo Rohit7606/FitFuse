@@ -1,11 +1,32 @@
-import json
-import random
-import os
 import argparse
-from datetime import datetime
+import hashlib
+import json
+import os
+import random
+from datetime import date, timedelta
+
 import jsonschema
 
 from engine.config import MOCK_SEED
+
+# Fixed build-time stamp. A wall-clock call here would make the same seed
+# produce a different file on every run, breaking AGENTS.md §3.1.
+GENERATED_AT = "2026-08-28T00:00:00Z"
+
+# Every invoice is issued relative to this date, so tenor_days always equals
+# due_date - issue_date (SCHEMA.md §3.5) without depending on today's date.
+BASE_ISSUE_DATE = date(2026, 8, 20)
+
+
+def _irn(invoice_id):
+    """A GST IRN is a 64-character hex string — see PERSON_A.md §3.1."""
+    return hashlib.sha256(f"irn:{invoice_id}".encode()).hexdigest()
+
+
+def _doc_hash(token):
+    """Document fingerprint. Two invoices sharing one are a duplicate-financing attempt."""
+    return "sha256:" + hashlib.sha256(f"doc:{token}".encode()).hexdigest()
+
 
 def generate_market(seed=MOCK_SEED):
     rng = random.Random(seed)
@@ -34,9 +55,11 @@ def generate_market(seed=MOCK_SEED):
                 "fees": 0.05,
                 "structure": 0.05
             },
-            "min_advance_rate": None,
-            "max_days_to_cash": None,
-            "preferred_structure": None,
+            # Payroll on Friday: at least 70% advance, cash within 5 days.
+            # Hard constraints, not preferences — see PERSON_A.md §3.4 step 1.
+            "min_advance_rate": 0.70,
+            "max_days_to_cash": 5,
+            "preferred_structure": "bullet",
             "urgent": True
         },
         "data_source": "synthetic",
@@ -63,12 +86,12 @@ def generate_market(seed=MOCK_SEED):
         "supplier_id": "SUP001",
         "buyer_id": "BUY001",
         "amount_lakh": 10.00,
-        "issue_date": "2023-10-01",
-        "due_date": "2023-11-30",
+        "issue_date": BASE_ISSUE_DATE.isoformat(),
+        "due_date": (BASE_ISSUE_DATE + timedelta(days=60)).isoformat(),
         "tenor_days": 60,
-        "irn": "valid_irn_001",
-        "document_hash": "hash_001",
-        "goods_description": "Auto components",
+        "irn": _irn("INV001"),
+        "document_hash": _doc_hash("INV001"),
+        "goods_description": "hydraulic_seal_kits",
         "delivery_confirmed": None,
         "status": "open",
         "data_source": "synthetic",
@@ -81,12 +104,12 @@ def generate_market(seed=MOCK_SEED):
         "supplier_id": "SUP002",
         "buyer_id": "BUY001",
         "amount_lakh": 10.00,
-        "issue_date": "2023-10-01",
-        "due_date": "2023-11-30",
+        "issue_date": BASE_ISSUE_DATE.isoformat(),
+        "due_date": (BASE_ISSUE_DATE + timedelta(days=60)).isoformat(),
         "tenor_days": 60,
-        "irn": "valid_irn_002",
-        "document_hash": "hash_001",  # Same as INV001
-        "goods_description": "Auto components",
+        "irn": _irn("INV002"),
+        "document_hash": _doc_hash("INV001"),  # Same fingerprint as INV001 — the planted duplicate
+        "goods_description": "hydraulic_seal_kits",
         "delivery_confirmed": None,
         "status": "open",
         "data_source": "synthetic",
@@ -99,12 +122,12 @@ def generate_market(seed=MOCK_SEED):
         "supplier_id": "SUP001",
         "buyer_id": "BUY001",
         "amount_lakh": 5.00,
-        "issue_date": "2023-11-01",
-        "due_date": "2023-12-01",
+        "issue_date": (BASE_ISSUE_DATE + timedelta(days=7)).isoformat(),
+        "due_date": (BASE_ISSUE_DATE + timedelta(days=37)).isoformat(),
         "tenor_days": 30,
-        "irn": "valid_irn_014",
-        "document_hash": "hash_014",
-        "goods_description": "Auto components",
+        "irn": _irn("INV014"),
+        "document_hash": _doc_hash("INV014"),
+        "goods_description": "brake_line_assemblies",
         "delivery_confirmed": True,
         "status": "open",
         "data_source": "synthetic",
@@ -123,9 +146,12 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 500.00,
         "cost_of_funds": 0.05,
         "target_return": 0.08,
-        "sector_limits": {},
-        "buyer_limit": 100.00,
-        "current_exposure": {},
+        "sector_limits": {"auto_components": 0.25, "textiles": 0.15},
+        "buyer_limit": 0.15,
+        "current_exposure": {
+            "by_sector": {"auto_components": 1180.00, "textiles": 1450.00},
+            "by_buyer": {"BUY001": 210.00},
+        },
         "speed_capability_days": 3,
         "preferred_structures": ["bullet"],
         "data_source": "synthetic"
@@ -142,15 +168,20 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 200.00,
         "cost_of_funds": 0.08,
         "target_return": 0.12,
-        "sector_limits": {},
-        "buyer_limit": 50.00,
-        "current_exposure": {},
+        "sector_limits": {"auto_components": 0.30, "textiles": 0.25},
+        "buyer_limit": 0.20,
+        "current_exposure": {
+            "by_sector": {"auto_components": 640.00},
+            "by_buyer": {"BUY001": 145.00},
+        },
         "speed_capability_days": 2,
         "preferred_structures": ["bullet"],
         "data_source": "synthetic"
     }
 
-    # Kestrel: 500 total, 20% limit = 100, 94 exposure => 6 available.
+    # Kestrel is the demo's syndication beat: auto-components sits at 94% of a 20%
+    # cap on a 500 portfolio, so sector headroom is exactly 6.00 lakh. The buyer
+    # limit is deliberately slack (0.15 x 500 - 20 = 55) so the SECTOR is what binds.
     prv003 = {
         "provider_id": "PRV003",
         "name": "Kestrel Credit Fund",
@@ -162,9 +193,12 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 200.00,
         "cost_of_funds": 0.06,
         "target_return": 0.15,
-        "sector_limits": {"auto_components": 0.20},
-        "buyer_limit": 50.00,
-        "current_exposure": {"auto_components": 94.00},
+        "sector_limits": {"auto_components": 0.20, "electronics": 0.30},
+        "buyer_limit": 0.15,
+        "current_exposure": {
+            "by_sector": {"auto_components": 94.00, "electronics": 61.50},
+            "by_buyer": {"BUY001": 20.00},
+        },
         "speed_capability_days": 0,
         "preferred_structures": ["bullet"],
         "data_source": "synthetic"
@@ -181,9 +215,12 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 100.00,
         "cost_of_funds": 0.07,
         "target_return": 0.14,
-        "sector_limits": {},
-        "buyer_limit": 30.00,
-        "current_exposure": {},
+        "sector_limits": {"auto_components": 0.35, "fmcg": 0.30},
+        "buyer_limit": 0.25,
+        "current_exposure": {
+            "by_sector": {"auto_components": 402.00},
+            "by_buyer": {"BUY001": 88.00},
+        },
         "speed_capability_days": 1,
         "preferred_structures": ["instalment"],
         "data_source": "synthetic"
@@ -200,9 +237,12 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 8.00,  # Limits this from INV001 (10.00)
         "cost_of_funds": 0.05,
         "target_return": 0.07,
-        "sector_limits": {},
-        "buyer_limit": 10.00,
-        "current_exposure": {},
+        "sector_limits": {"auto_components": 0.20, "agriculture": 0.35},
+        "buyer_limit": 0.12,
+        "current_exposure": {
+            "by_sector": {"auto_components": 96.00},
+            "by_buyer": {"BUY001": 14.00},
+        },
         "speed_capability_days": 4,
         "preferred_structures": ["bullet", "instalment"],
         "data_source": "synthetic"
@@ -219,9 +259,12 @@ def generate_market(seed=MOCK_SEED):
         "max_ticket_lakh": 300.00,
         "cost_of_funds": 0.04,
         "target_return": 0.10,
-        "sector_limits": {},
-        "buyer_limit": 200.00,
-        "current_exposure": {},
+        "sector_limits": {"auto_components": 0.25, "pharmaceuticals": 0.30},
+        "buyer_limit": 0.18,
+        "current_exposure": {
+            "by_sector": {"auto_components": 1240.00},
+            "by_buyer": {"BUY001": 300.00},
+        },
         "speed_capability_days": 1,
         "preferred_structures": ["bullet"],
         "data_source": "synthetic"
@@ -310,7 +353,9 @@ def generate_market(seed=MOCK_SEED):
                 "annual_revenue_lakh": round(rng.lognormvariate(4.5, 1.2), 2),
                 "gstin": f"27{rng.choice(['AAD', 'BBE', 'CCF'])}{rng.randint(1000, 9999)}A1Z{rng.randint(1,9)}",
                 "prior_financings": rng.randint(0, 50),
-                "prior_defaults": rng.choice([0, 0, 0, 0, 0, 1, 2]),
+                # None is not the same as 0 — a declared clean record should help,
+                # silence should not. See AGENTS.md §3.6.
+                "prior_defaults": rng.choice([0, 0, 0, 0, 0, 1, 2, None, None]),
                 "data_completeness": round(rng.uniform(0.4, 0.99), 2),
                 "preferences": {
                     "preset": "cheapest",
@@ -337,7 +382,6 @@ def generate_market(seed=MOCK_SEED):
         "Retail", "Motors", "Electronics", "Foods", "Pharma", "FMCG", "Apparel",
         "Logistics", "Engineering", "Infotech", "Healthcare", "Energy"
     ]
-    grades = ["AAA", "AA", "A", "BBB", "BB"]
     for i in range(2, 13):
         bid = f"BUY{i:03d}"
         
@@ -363,29 +407,37 @@ def generate_market(seed=MOCK_SEED):
         buyers.append(buy)
 
     # Generate Invoices (up to ~180)
+    goods = [
+        "hydraulic_seal_kits", "cotton_yarn_bales", "injection_moulded_housings",
+        "packaged_snack_cartons", "pcb_assemblies", "steel_fasteners",
+        "api_drug_intermediates", "corrugated_packaging", "wiring_harnesses",
+        "industrial_lubricants", "cold_rolled_coils", "agro_seed_consignment",
+    ]
     for i in range(3, 181):
         if i == 14: continue # INV014 already done
         iid = f"INV{i:03d}"
-        amount = round(rng.lognormvariate(1.5, 1.2), 2)
-        if amount < 0.5: amount = 0.5
-        if amount > 80.0: amount = 80.0
-        amount = round(amount + rng.random(), 2) # non-round
-        
+        # Jitter first, then clamp — clamping first lets the jitter push it back out of range.
+        amount = round(rng.lognormvariate(1.5, 1.2) + rng.random(), 2)
+        amount = round(min(max(amount, 0.5), 80.0), 2)
+
         sup_id = rng.choice(suppliers)["supplier_id"]
         buy_id = rng.choice(buyers)["buyer_id"]
         tenor = rng.choice([30, 45, 60, 90])
-        
+
+        # due_date is derived from the tenor so the two always agree (SCHEMA.md §3.5).
+        issued = BASE_ISSUE_DATE - timedelta(days=rng.randint(0, 45))
+
         inv = {
             "invoice_id": iid,
             "supplier_id": sup_id,
             "buyer_id": buy_id,
             "amount_lakh": amount,
-            "issue_date": "2023-10-15",
-            "due_date": "2023-11-15",
+            "issue_date": issued.isoformat(),
+            "due_date": (issued + timedelta(days=tenor)).isoformat(),
             "tenor_days": tenor,
-            "irn": f"valid_irn_{i:03d}",
-            "document_hash": f"hash_{i:03d}",
-            "goods_description": "Various goods",
+            "irn": _irn(iid),
+            "document_hash": _doc_hash(iid),
+            "goods_description": rng.choice(goods),
             "delivery_confirmed": rng.choice([True, False, None]),
             "status": "open",
             "data_source": "synthetic",
@@ -393,10 +445,6 @@ def generate_market(seed=MOCK_SEED):
         }
         invoices.append(inv)
         
-    # Set another provider close to a limit (PRV001)
-    prv001["sector_limits"] = {"textiles": 0.15}
-    prv001["current_exposure"] = {"textiles": 1450.00} # 15% of 10000 = 1500 limit. 1450 exposure => 50 max fundable
-
     # Generate Financing History (~50 entries)
     for i in range(1, 51):
         hist_iid = f"HINV{i:03d}"
@@ -428,7 +476,7 @@ def generate_market(seed=MOCK_SEED):
     market = {
         "meta": {
             "schema_version": "1.0",
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": GENERATED_AT,
             "generator": "mockgen",
             "seed": seed,
             "currency_unit": "INR_lakh"
@@ -443,30 +491,36 @@ def generate_market(seed=MOCK_SEED):
     return market
 
 def validate_market(market, schema_path):
-    with open(schema_path, "r") as f:
+    """Validate against MarketInput specifically.
+
+    schema.json is a definitions-only document with no top-level constraints, so
+    validating against its root accepts literally any instance. The $ref is what
+    makes this a real check rather than a no-op.
+    """
+    with open(schema_path, encoding="utf-8") as f:
         schema = json.load(f)
-    jsonschema.validate(instance=market, schema=schema)
+    jsonschema.validate(
+        instance=market,
+        schema={**schema, "$ref": "#/definitions/MarketInput"},
+    )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=MOCK_SEED)
     parser.add_argument("--out", type=str, required=True)
     args = parser.parse_args()
-    
+
     market = generate_market(args.seed)
-    
+
     # Check fixed constraints
     assert market["suppliers"][0]["supplier_id"] == "SUP001"
     assert market["buyers"][0]["buyer_id"] == "BUY001"
-    
-    # We must reset meta timestamps to be deterministic
-    market["meta"]["generated_at"] = "2024-01-01T00:00:00Z"
-    
-    # Validate against schema
+
     schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.json")
     validate_market(market, schema_path)
-    
+
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out, "w") as f:
-        json.dump(market, f, indent=2)
+    with open(args.out, "w", encoding="utf-8") as f:
+        json.dump(market, f, indent=2, ensure_ascii=False)
     print(f"Market generated successfully at {args.out}")
