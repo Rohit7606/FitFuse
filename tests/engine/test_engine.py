@@ -193,13 +193,62 @@ class TestRisk:
 class TestEligibility:
     """Eligibility edge cases."""
 
-    @pytest.mark.skip(reason="Person A: implement after eligibility")
     def test_eligibility_reasons(self):
-        pass
+        """Every ineligible provider has an exclusion_reason and binding_constraint."""
+        from engine.eligibility import check_eligibility
+        from engine.mockgen import generate_market
+        from engine.risk import score_risk
+        from engine.verify import verify
 
-    @pytest.mark.skip(reason="Person A: implement after eligibility")
+        market = generate_market(42)
+        inv = next(i for i in market["invoices"] if i["invoice_id"] == "INV001")
+        sup = next(s for s in market["suppliers"] if s["supplier_id"] == inv["supplier_id"])
+        buy = next(b for b in market["buyers"] if b["buyer_id"] == inv["buyer_id"])
+        v = verify("INV001", market)
+        r = score_risk(inv, sup, buy, v)
+
+        elig = check_eligibility(inv, sup, r, market["providers"])
+        elig_by_id = {e["provider_id"]: e for e in elig}
+
+        # 4 eligible, 2 excluded
+        assert elig_by_id["PRV001"]["eligible"] is True
+        assert elig_by_id["PRV002"]["eligible"] is True
+        assert elig_by_id["PRV003"]["eligible"] is True
+        assert elig_by_id["PRV004"]["eligible"] is True
+
+        # PRV005 excluded due to max_ticket
+        prv5 = elig_by_id["PRV005"]
+        assert prv5["eligible"] is False
+        assert prv5["binding_constraint"] == "max_ticket"
+        assert prv5["max_fundable_lakh"] == 0.00
+        assert "Coastal Cooperative Bank" in prv5["exclusion_reason"]
+        assert "exceeds" in prv5["exclusion_reason"]
+
+        # PRV006 excluded due to risk_appetite
+        prv6 = elig_by_id["PRV006"]
+        assert prv6["eligible"] is False
+        assert prv6["binding_constraint"] == "risk_appetite"
+        assert prv6["max_fundable_lakh"] == 0.00
+        assert "Sentinel Asset Managers" in prv6["exclusion_reason"]
+
     def test_max_fundable(self):
-        pass
+        """Kestrel's max_fundable_lakh is 6.00 on demo invoice INV001."""
+        from engine.eligibility import check_eligibility
+        from engine.mockgen import generate_market
+        from engine.risk import score_risk
+        from engine.verify import verify
+
+        market = generate_market(42)
+        inv = next(i for i in market["invoices"] if i["invoice_id"] == "INV001")
+        sup = next(s for s in market["suppliers"] if s["supplier_id"] == inv["supplier_id"])
+        buy = next(b for b in market["buyers"] if b["buyer_id"] == inv["buyer_id"])
+        v = verify("INV001", market)
+        r = score_risk(inv, sup, buy, v)
+
+        elig = check_eligibility(inv, sup, r, market["providers"])
+        elig_by_id = {e["provider_id"]: e for e in elig}
+
+        assert elig_by_id["PRV003"]["max_fundable_lakh"] == 6.00
 
 
 class TestScoring:
