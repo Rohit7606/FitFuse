@@ -226,6 +226,119 @@ class TestAgents:
 
 
 
+def _scored(offers, fit_scores):
+    """Attach fit_score — engine/scoring.py is still a stub (AGENTS.md §3.3)."""
+    out = []
+    for o in offers:
+        scored = dict(o)
+        scored["fit_score"] = fit_scores[o["offer_id"]]
+        scored["feasible"] = True
+        out.append(scored)
+    return out
+
+
+# DEMO_SCENARIO.md §4 fit scores under the cash_fastest preset
+DEMO_FIT = {"OFR001": 0.71, "OFR002": 0.64, "OFR003": 0.89, "OFR004": 0.68}
+
+
+@pytest.fixture(scope="module")
+def demo_clearing(providers, invoice, demo_offers):
+    from market.clearing import run_clearing
+    demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+    offers = _scored(list(demo_offers.values()), DEMO_FIT)
+    return run_clearing(
+        invoices=[invoice],
+        offers_by_invoice={"INV001": offers},
+        providers=[providers[p] for p in demo],
+        eligibility_by_invoice={"INV001": {
+            p: {"provider_id": p, "eligible": True,
+                "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+            for p in demo}},
+        risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+    )
+
+
+class TestSyndication:
+    """Demo step 7 — Kestrel caps at 6.00, Meridian takes the remaining 3.00."""
+
+    def test_demo_match(self, demo_clearing):
+        m = demo_clearing["matches"][0]
+        assert m["invoice_id"] == "INV001"
+        assert m["syndicated"] is True
+        assert m["total_advance_lakh"] == 9.00
+        assert [(a["provider_id"], a["amount_lakh"]) for a in m["allocations"]] == [
+            ("PRV003", 6.00), ("PRV001", 3.00)]
+
+    def test_blended_rate(self, demo_clearing):
+        """(6.00 x 0.0860 + 3.00 x 0.0900) / 9.00 = 0.0873"""
+        assert demo_clearing["matches"][0]["blended_rate_annual"] == 0.0873
+
+    def test_allocations_sum_exactly(self, demo_clearing):
+        """schema.json requires this, and float drift bites here."""
+        for m in demo_clearing["matches"]:
+            assert round(sum(a["amount_lakh"] for a in m["allocations"]), 2) == \
+                   m["total_advance_lakh"]
+
+    def test_starts_matched_not_funded(self, demo_clearing):
+        """Selecting an offer is not financing — SCHEMA.md §4.6."""
+        assert demo_clearing["matches"][0]["state"] == "matched"
+
+    def test_capacity_respected(self, demo_clearing):
+        """No allocation may exceed the provider's max_fundable_lakh."""
+        caps = {"PRV003": 6.00}
+        for m in demo_clearing["matches"]:
+            for a in m["allocations"]:
+                assert a["amount_lakh"] <= caps.get(a["provider_id"], 999.0) + 1e-9
+
+    def test_clearing_terminates_and_is_stable(self, demo_clearing):
+        s = demo_clearing["summary"]
+        assert s["stable"] is True and 0 < s["iterations"] <= 50
+        assert s["matched_count"] == 1 and s["syndicated_count"] == 1
+
+    def test_reason_names_provider_and_number(self, demo_clearing):
+        text = demo_clearing["matches"][0]["reason_text"]
+        assert "Kestrel" in text and "6.00" in text and "Meridian" in text
+
+    def test_utilisation_reported(self, demo_clearing):
+        util = {u["provider_id"]: u for u in demo_clearing["provider_utilisation"]}
+        assert util["PRV003"]["committed_lakh"] == 6.00
+        assert util["PRV001"]["committed_lakh"] == 3.00
+
+    def test_determinism(self, providers, invoice, demo_offers):
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        def run():
+            return run_clearing(
+                invoices=[invoice],
+                offers_by_invoice={"INV001": _scored(list(demo_offers.values()),
+                                                     DEMO_FIT)},
+                providers=[providers[p] for p in demo],
+                eligibility_by_invoice={"INV001": {
+                    p: {"provider_id": p, "eligible": True,
+                        "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+                    for p in demo}},
+                risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+            )
+        assert json.dumps(run()) == json.dumps(run())
+
+    def test_shortfall_is_unmatched_with_reason(self, providers, invoice, demo_offers):
+        """When nobody has capacity, say so rather than part-funding silently."""
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        result = run_clearing(
+            invoices=[invoice],
+            offers_by_invoice={"INV001": _scored(list(demo_offers.values()), DEMO_FIT)},
+            providers=[providers[p] for p in demo],
+            eligibility_by_invoice={"INV001": {
+                p: {"provider_id": p, "eligible": True, "max_fundable_lakh": 0.50}
+                for p in demo}},
+            risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+        )
+        assert result["matches"] == []
+        assert result["unmatched"][0]["invoice_id"] == "INV001"
+        assert "lakh" in result["unmatched"][0]["reason"]
+
+
 class TestClearing:
     """Clearing engine tests."""
 
