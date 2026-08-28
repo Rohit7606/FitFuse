@@ -97,48 +97,346 @@ class TestBiddingIsReachable:
         assert min(rates, key=rates.get) == "PRV002"
 
 
+def _assessment(providers, eligible_ids, max_fundable=None):
+    """A minimal Assessment — engine/assess.py is still a stub (AGENTS.md §3.3)."""
+    max_fundable = max_fundable or {}
+    return {
+        "invoice_id": "INV001",
+        "risk": {"pd": 0.0210, "pd_lower": 0.0140, "pd_upper": 0.0280,
+                 "uncertainty": 0.0070},
+        "eligibility": [
+            {"provider_id": pid,
+             "eligible": pid in eligible_ids,
+             "max_fundable_lakh": max_fundable.get(pid, 999.0)}
+            for pid in sorted(providers)
+        ],
+    }
+
+
+@pytest.fixture(scope="module")
+def invoice():
+    with open(_MARKET_PATH, encoding="utf-8") as f:
+        return [i for i in json.load(f)["invoices"] if i["invoice_id"] == "INV001"][0]
+
+
+@pytest.fixture(scope="module")
+def demo_offers(providers, invoice):
+    from market.agents import generate_offers
+    demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+    assessment = _assessment(providers, demo, max_fundable={"PRV003": 6.00})
+    return {o["provider_id"]: o
+            for o in generate_offers([providers[p] for p in demo], invoice, assessment)}
+
+
 class TestAgents:
     """Provider agent tests."""
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_agents_differentiate(self):
-        pass
+    # DEMO_SCENARIO.md §4 — rate, advance, days_to_settle, fee, structure
+    DEMO_TERMS = {
+        "PRV001": (0.0900, 0.80, 3, 0.0050, "bullet"),
+        "PRV002": (0.0820, 0.70, 2, 0.0080, "bullet"),
+        "PRV003": (0.0860, 0.90, 0, 0.0040, "bullet"),
+        "PRV004": (0.0940, 0.75, 1, 0.0030, "instalment"),
+    }
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_never_below_cost(self):
-        pass
+    @pytest.mark.parametrize("provider_id", sorted(DEMO_TERMS))
+    def test_demo_offer_terms(self, demo_offers, provider_id):
+        """The acceptance test for this module — PERSON_B.md §3.1."""
+        rate, advance, days, fee, structure = self.DEMO_TERMS[provider_id]
+        o = demo_offers[provider_id]
+        assert o["rate_annual"] == rate
+        assert o["advance_rate"] == advance
+        assert o["days_to_settle"] == days
+        assert o["fee_percent"] == fee
+        assert o["repayment_structure"] == structure
 
-    @pytest.mark.skip(reason="Person B: implement after agents")
-    def test_shading_increases(self):
-        pass
+    def test_agents_differentiate(self, demo_offers):
+        """Four offers differing on more than rate — the whole thesis."""
+        for field in ("rate_annual", "advance_rate", "days_to_settle", "fee_percent"):
+            values = {o[field] for o in demo_offers.values()}
+            assert len(values) == 4, f"all four offers must differ on {field}"
+        assert len({o["repayment_structure"] for o in demo_offers.values()}) > 1
+
+    def test_never_below_cost(self, providers, invoice):
+        """A hard invariant, at any uncertainty — PERSON_B.md §3.1.
+
+        Note this sweep never actually fires the floor: every term added to
+        cost_of_funds is positive, so the sum always clears it. See
+        test_floor_binds_on_negative_margin for the case that does.
+        """
+        from market.agents import generate_offer
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+        for pid, p in sorted(providers.items()):
+            for uncertainty in (0.0, 0.007, 0.05, 0.4):
+                a = _assessment(providers, [pid])
+                a["risk"]["uncertainty"] = uncertainty
+                offer = generate_offer(p, invoice, a, elig)
+                assert offer["rate_annual"] >= p["cost_of_funds"], pid
+
+    def test_floor_binds_on_negative_margin(self, providers, invoice):
+        """Exercise the max(required, cost_of_funds) branch itself.
+
+        Raised by Person A in review: with every additive term positive, the
+        floor is unreachable and the guard was effectively untested. A negative
+        target_margin drives the unfloored rate below funding cost, which is
+        the only way to prove the clamp works rather than assuming it.
+        """
+        from market.agents import generate_offer
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+        for pid, p in sorted(providers.items()):
+            underwater = {**p, "target_margin": -0.50}
+            a = _assessment(providers, [pid])
+            offer = generate_offer(underwater, invoice, a, elig)
+            assert offer["rate_annual"] == round(p["cost_of_funds"], 4), (
+                f"{pid} should clamp to its cost of funds, got {offer['rate_annual']}"
+            )
+
+    def test_rate_responds_to_risk(self, providers, invoice):
+        """Independent of the demo calibration: pricing must track its inputs.
+
+        The demo-rate tests are self-consistent by construction — target_margin
+        was calibrated so each provider lands on its DEMO_SCENARIO.md §4 rate,
+        so asserting that rate proves arithmetic, not economics. These checks
+        vary one input at a time and assert the direction of the response,
+        which holds whatever the constants are tuned to.
+        """
+        from market.agents import generate_offer
+        p = providers["PRV003"]
+        elig = {"eligible": True, "max_fundable_lakh": 99.0}
+
+        def rate(**risk):
+            a = _assessment(providers, ["PRV003"])
+            a["risk"].update(risk)
+            return generate_offer(p, invoice, a, elig)["rate_annual"]
+
+        base = rate()
+        assert rate(pd=0.0500) > base, "higher default probability must cost more"
+        assert rate(pd_upper=0.0600) > base, "a wider band must cost more"
+        assert rate(pd=0.0050, pd_upper=0.0100) < base, "safer must cost less"
+
+        # And a dearer funder must bid higher, all else equal.
+        dearer = {**p, "cost_of_funds": p["cost_of_funds"] + 0.02}
+        a = _assessment(providers, ["PRV003"])
+        assert generate_offer(dearer, invoice, a, elig)["rate_annual"] > base
+
+    def test_margins_are_economically_ordered(self, providers):
+        """A sanity check the calibration cannot fake.
+
+        Whatever the target_margin values are tuned to, funding costs must stay
+        in a plausible order — a bank funds itself more cheaply than an NBFC.
+        If a future retune inverts that, the market stops being defensible even
+        if every demo rate still reproduces.
+        """
+        bank = providers["PRV001"]["cost_of_funds"]
+        nbfc = providers["PRV002"]["cost_of_funds"]
+        assert bank < nbfc, "a bank should fund itself more cheaply than an NBFC"
+        for pid, p in sorted(providers.items()):
+            assert p["target_margin"] >= 0.0, f"{pid} has a negative margin"
+            assert p["target_margin"] < 0.10, f"{pid} margin of {p['target_margin']} is implausible"
+
+    def test_shading_increases(self, providers, invoice):
+        """Higher uncertainty must raise the bid, all else equal."""
+        from market.agents import generate_offer
+        p = providers["PRV003"]
+        elig = {"provider_id": "PRV003", "eligible": True, "max_fundable_lakh": 99.0}
+        rates = []
+        for uncertainty in (0.001, 0.007, 0.02):
+            a = _assessment(providers, ["PRV003"])
+            a["risk"]["uncertainty"] = uncertainty
+            rates.append(generate_offer(p, invoice, a, elig)["rate_annual"])
+        assert rates == sorted(rates) and rates[0] < rates[-1]
+
+    def test_ineligible_provider_does_not_bid(self, providers, invoice):
+        from market.agents import generate_offer
+        a = _assessment(providers, [])
+        assert generate_offer(providers["PRV005"], invoice, a,
+                              {"eligible": False, "max_fundable_lakh": 0.0}) is None
+
+    def test_capacity_limited_provider_still_bids(self, demo_offers):
+        """Kestrel wants the whole deal; its sector limit says 6.00 lakh.
+
+        Bidding for the part it can fund is what makes syndication possible.
+        """
+        kestrel = demo_offers["PRV003"]
+        assert kestrel["advance_amount_lakh"] == 9.00
+        assert kestrel["amount_committed_lakh"] == 6.00
+
+    def test_respects_speed_capability(self, providers, invoice):
+        """An agent may never promise to settle faster than it can."""
+        from market.agents import generate_offer
+        for pid, p in sorted(providers.items()):
+            a = _assessment(providers, [pid])
+            offer = generate_offer(p, invoice, a,
+                                   {"eligible": True, "max_fundable_lakh": 99.0})
+            assert offer["days_to_settle"] >= p["speed_capability_days"], pid
+
+    def test_respects_preferred_structures(self, providers, invoice):
+        from market.agents import generate_offer
+        for pid, p in sorted(providers.items()):
+            a = _assessment(providers, [pid])
+            offer = generate_offer(p, invoice, a,
+                                   {"eligible": True, "max_fundable_lakh": 99.0})
+            assert offer["repayment_structure"] in p["preferred_structures"], pid
+
+    def test_deterministic(self, providers, invoice):
+        from market.agents import generate_offers
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        a = _assessment(providers, demo, max_fundable={"PRV003": 6.00})
+        args = ([providers[p] for p in demo], invoice, a)
+        assert json.dumps(generate_offers(*args)) == json.dumps(generate_offers(*args))
+
+    def test_arcline_posts_lowest_rate(self, demo_offers):
+        """The demo's trap must survive any tuning."""
+        cheapest = min(demo_offers.values(), key=lambda o: o["rate_annual"])
+        assert cheapest["provider_id"] == "PRV002"
 
 
-class TestClearing:
-    """Clearing engine tests."""
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_capacity_respected(self):
-        pass
+def _scored(offers, fit_scores):
+    """Attach fit_score — engine/scoring.py is still a stub (AGENTS.md §3.3)."""
+    out = []
+    for o in offers:
+        scored = dict(o)
+        scored["fit_score"] = fit_scores[o["offer_id"]]
+        scored["feasible"] = True
+        out.append(scored)
+    return out
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_clearing_terminates(self):
-        pass
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_clearing_stable(self):
-        pass
+# DEMO_SCENARIO.md §4 fit scores under the cash_fastest preset
+DEMO_FIT = {"OFR001": 0.71, "OFR002": 0.64, "OFR003": 0.89, "OFR004": 0.68}
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_syndication_sums(self):
-        pass
 
-    @pytest.mark.skip(reason="Person B: implement after clearing")
-    def test_demo_match(self):
-        pass
+@pytest.fixture(scope="module")
+def demo_clearing(providers, invoice, demo_offers):
+    from market.clearing import run_clearing
+    demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+    offers = _scored(list(demo_offers.values()), DEMO_FIT)
+    return run_clearing(
+        invoices=[invoice],
+        offers_by_invoice={"INV001": offers},
+        providers=[providers[p] for p in demo],
+        eligibility_by_invoice={"INV001": {
+            p: {"provider_id": p, "eligible": True,
+                "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+            for p in demo}},
+        risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+    )
+
+
+class TestSyndication:
+    """Demo step 7 — Kestrel caps at 6.00, Meridian takes the remaining 3.00."""
+
+    def test_demo_match(self, demo_clearing):
+        m = demo_clearing["matches"][0]
+        assert m["invoice_id"] == "INV001"
+        assert m["syndicated"] is True
+        assert m["total_advance_lakh"] == 9.00
+        assert [(a["provider_id"], a["amount_lakh"]) for a in m["allocations"]] == [
+            ("PRV003", 6.00), ("PRV001", 3.00)]
+
+    def test_blended_rate(self, demo_clearing):
+        """(6.00 x 0.0860 + 3.00 x 0.0900) / 9.00 = 0.0873"""
+        assert demo_clearing["matches"][0]["blended_rate_annual"] == 0.0873
+
+    def test_allocations_sum_exactly(self, demo_clearing):
+        """schema.json requires this, and float drift bites here."""
+        for m in demo_clearing["matches"]:
+            assert round(sum(a["amount_lakh"] for a in m["allocations"]), 2) == \
+                   m["total_advance_lakh"]
+
+    def test_starts_matched_not_funded(self, demo_clearing):
+        """Selecting an offer is not financing — SCHEMA.md §4.6."""
+        assert demo_clearing["matches"][0]["state"] == "matched"
+
+    def test_capacity_respected(self, demo_clearing):
+        """No allocation may exceed the provider's max_fundable_lakh."""
+        caps = {"PRV003": 6.00}
+        for m in demo_clearing["matches"]:
+            for a in m["allocations"]:
+                assert a["amount_lakh"] <= caps.get(a["provider_id"], 999.0) + 1e-9
+
+    def test_clearing_terminates_and_is_stable(self, demo_clearing):
+        s = demo_clearing["summary"]
+        assert s["stable"] is True and 0 < s["iterations"] <= 50
+        assert s["matched_count"] == 1 and s["syndicated_count"] == 1
+
+    def test_reason_names_provider_and_number(self, demo_clearing):
+        text = demo_clearing["matches"][0]["reason_text"]
+        assert "Kestrel" in text and "6.00" in text and "Meridian" in text
+
+    def test_utilisation_reported(self, demo_clearing):
+        util = {u["provider_id"]: u for u in demo_clearing["provider_utilisation"]}
+        assert util["PRV003"]["committed_lakh"] == 6.00
+        assert util["PRV001"]["committed_lakh"] == 3.00
+
+    def test_determinism(self, providers, invoice, demo_offers):
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        def run():
+            return run_clearing(
+                invoices=[invoice],
+                offers_by_invoice={"INV001": _scored(list(demo_offers.values()),
+                                                     DEMO_FIT)},
+                providers=[providers[p] for p in demo],
+                eligibility_by_invoice={"INV001": {
+                    p: {"provider_id": p, "eligible": True,
+                        "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+                    for p in demo}},
+                risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+            )
+        assert json.dumps(run()) == json.dumps(run())
+
+    def test_shortfall_is_unmatched_with_reason(self, providers, invoice, demo_offers):
+        """When nobody has capacity, say so rather than part-funding silently."""
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        result = run_clearing(
+            invoices=[invoice],
+            offers_by_invoice={"INV001": _scored(list(demo_offers.values()), DEMO_FIT)},
+            providers=[providers[p] for p in demo],
+            eligibility_by_invoice={"INV001": {
+                p: {"provider_id": p, "eligible": True, "max_fundable_lakh": 0.50}
+                for p in demo}},
+            risk_by_invoice={"INV001": {"pd": 0.0210, "pd_upper": 0.0280}},
+        )
+        assert result["matches"] == []
+        assert result["unmatched"][0]["invoice_id"] == "INV001"
+        assert "lakh" in result["unmatched"][0]["reason"]
+
+
+# Clearing coverage lives in TestSyndication above, which exercises the demo
+# match, blended rate, exact allocation sum, capacity limits, termination and
+# stability, utilisation, determinism and the shortfall path. The stubs that
+# used to sit here duplicated that under the PERSON_B.md §7 names and made the
+# suite look unimplemented — a reviewer reading only the skip list concluded
+# exactly that. Only genuinely pending work is listed below.
+
+
+class TestPurity:
+    """No side effects — clear() must not touch the caller's data."""
+
+    def test_no_market_mutation(self, providers, invoice, demo_offers):
+        """The API is stateless; a mutated input would leak between requests."""
+        import copy
+
+        from market.clearing import run_clearing
+        demo = ["PRV001", "PRV002", "PRV003", "PRV004"]
+        provider_list = [providers[p] for p in demo]
+        offers = _scored(list(demo_offers.values()), DEMO_FIT)
+        eligibility = {"INV001": {
+            p: {"provider_id": p, "eligible": True,
+                "max_fundable_lakh": 6.00 if p == "PRV003" else 999.0}
+            for p in demo}}
+        risk = {"INV001": {"pd": 0.0210, "pd_upper": 0.0280}}
+
+        before = copy.deepcopy((provider_list, offers, eligibility, risk, invoice))
+        run_clearing([invoice], {"INV001": offers}, provider_list, eligibility, risk)
+        assert (provider_list, offers, eligibility, risk, invoice) == before
 
 
 class TestSettlement:
-    """Settlement state machine tests."""
+    """Settlement state machine — Phase 3, market/settlement.py not yet written."""
 
     @pytest.mark.skip(reason="Person B: implement after settlement")
     def test_illegal_transition(self):
@@ -146,20 +444,8 @@ class TestSettlement:
 
 
 class TestLearning:
-    """Learning loop tests."""
+    """Learning loop — Phase 3, market/learning.py not yet written."""
 
     @pytest.mark.skip(reason="Person B: implement after learning")
     def test_learning_delta(self):
-        pass
-
-
-class TestPurity:
-    """No side effects."""
-
-    @pytest.mark.skip(reason="Person B: implement after clear/settle")
-    def test_no_market_mutation(self):
-        pass
-
-    @pytest.mark.skip(reason="Person B: implement after clear")
-    def test_determinism(self):
         pass

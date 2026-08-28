@@ -144,8 +144,18 @@ SEGMENT_LEARNING_RATE = 0.20   # How fast provider segment estimates move
 # See PERSON_B.md §3.1 for the rationale
 # ---------------------------------------------------------------------------
 
+# `advance`, `settle_days` and `fee_percent` are the operating point each type
+# bids at; the `_range` entries record the band that point must stay inside.
+# Per-type constants, never per-provider — an agent that special-cased a
+# provider_id would be hardcoding the demo rather than simulating a market.
+# Providers of the same type still differ: the rate comes from their own
+# cost_of_funds and target_margin, and settlement is floored by their own
+# speed_capability_days.
 PROVIDER_TYPE_DEFAULTS = {
     "bank": {
+        "advance": 0.80,
+        "settle_days": 3,
+        "fee_percent": 0.0050,
         "advance_range": (0.75, 0.82),
         "settlement_range": (2, 4),
         "fee_range": (0.004, 0.006),
@@ -153,6 +163,9 @@ PROVIDER_TYPE_DEFAULTS = {
         "rate_posture": "competitive",
     },
     "nbfc": {
+        "advance": 0.70,
+        "settle_days": 2,
+        "fee_percent": 0.0080,
         "advance_range": (0.68, 0.75),
         "settlement_range": (1, 2),
         "fee_range": (0.006, 0.010),
@@ -160,6 +173,9 @@ PROVIDER_TYPE_DEFAULTS = {
         "rate_posture": "lowest_headline",
     },
     "fund": {
+        "advance": 0.90,
+        "settle_days": 0,
+        "fee_percent": 0.0040,
         "advance_range": (0.85, 0.92),
         "settlement_range": (0, 1),
         "fee_range": (0.002, 0.005),
@@ -167,6 +183,9 @@ PROVIDER_TYPE_DEFAULTS = {
         "rate_posture": "mid",
     },
     "fintech": {
+        "advance": 0.75,
+        "settle_days": 1,
+        "fee_percent": 0.0030,
         "advance_range": (0.72, 0.78),
         "settlement_range": (0, 1),
         "fee_range": (0.001, 0.004),
@@ -174,6 +193,10 @@ PROVIDER_TYPE_DEFAULTS = {
         "rate_posture": "highest",
     },
 }
+
+# How many rivals an agent assumes when shading. Four eligible providers on the
+# demo invoice means three rivals from any one agent's point of view.
+DEFAULT_EXPECTED_COMPETITORS = 3
 
 # ---------------------------------------------------------------------------
 # Weight sum tolerance (SCHEMA.md §3.3)
