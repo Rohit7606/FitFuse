@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { formatLakh, formatPercent, formatRupees, formatDays } from '../utils/format.js';
 
 export default function MatchSettlement({ match, providers = [], onFund, onSettle }) {
@@ -11,7 +10,6 @@ export default function MatchSettlement({ match, providers = [], onFund, onSettl
     total_advance_lakh,
     blended_rate_annual,
     blended_cost_lakh,
-    supplier_fit_score,
     days_to_settle,
     reason_text
   } = match;
@@ -26,8 +24,6 @@ export default function MatchSettlement({ match, providers = [], onFund, onSettl
   };
 
   const stateColor = stateColors[state] || stateColors.matched;
-  const isFunded = state === 'funded';
-  const isSettled = ['settled', 'late', 'defaulted'].includes(state);
 
   return (
     <div className="card" style={{ border: `2px solid ${stateColor}`, padding: 'var(--space-xl)', background: 'var(--bg-elevated)', marginTop: 'var(--space-2xl)' }}>
